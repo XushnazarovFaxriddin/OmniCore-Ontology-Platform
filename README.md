@@ -225,12 +225,12 @@ cd OmniCore-Ontology-Platform
 
 ```powershell
 # Create virtual environment
-python -m venv venv
+python -m venv .venv
 
 # Activate virtual environment
-.\venv\Scripts\Activate.ps1    # PowerShell
+.\.venv\Scripts\Activate.ps1    # PowerShell
 # OR
-.\venv\Scripts\activate.bat     # Command Prompt
+.\.venv\Scripts\activate.bat     # Command Prompt
 
 # Upgrade pip
 python -m pip install --upgrade pip
@@ -426,10 +426,10 @@ chmod -R 755 .
 
 ```bash
 # Create virtual environment
-python3 -m venv venv
+python3 -m venv .venv
 
 # Activate virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Upgrade pip
 pip install --upgrade pip
@@ -752,8 +752,8 @@ curl http://localhost:8000/api/metrics
 
 ```bash
 # Activate virtual environment
-source venv/bin/activate  # Linux/Mac
-.\venv\Scripts\Activate.ps1  # Windows
+source .venv/bin/activate  # Linux/Mac
+.\.venv\Scripts\Activate.ps1  # Windows
 
 # Run all tests with verbose output
 pytest tests/ -v
@@ -851,7 +851,7 @@ podman-compose restart
 export PYTHONPATH=/path/to/OmniCore-Ontology-Platform/src
 
 # Or add to virtual environment
-echo 'export PYTHONPATH=/path/to/src' >> venv/bin/activate
+echo 'export PYTHONPATH=/path/to/src' >> .venv/bin/activate
 ```
 
 **4. Frontend Build Fails**
