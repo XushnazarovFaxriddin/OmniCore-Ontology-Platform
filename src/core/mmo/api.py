@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import settings
+from common.database import get_db_path
 from common.logging_config import setup_logging, get_logger
 from common.exceptions import NotFoundError, OmniCoreException
 from common.models import PaginatedResponse, HealthResponse, HealthStatus
@@ -37,8 +38,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize service
-service = MMOService()
+service: MMOService | None = None
+_service_db_path: str | None = None
+
+
+def get_service() -> MMOService:
+    """Return an initialized MMO service."""
+    global service, _service_db_path
+
+    current_db_path = get_db_path("mmo.db")
+    needs_new_service = service is None or _service_db_path != current_db_path
+
+    if needs_new_service:
+        service = MMOService()
+        _service_db_path = current_db_path
+    else:
+        if not service.store.db.table_exists("mmo_classes"):
+            service.store._init_schema()
+
+    return service
 
 
 # Exception handlers
@@ -72,7 +90,7 @@ async def list_classes(
     limit: int = Query(100, ge=1, le=1000, description="Maximum items to return"),
 ):
     """List all MMO classes with pagination."""
-    return service.list_classes(offset=offset, limit=limit)
+    return get_service().list_classes(offset=offset, limit=limit)
 
 
 @app.get("/classes/{class_id}", response_model=MMOClass, tags=["Classes"])
@@ -80,13 +98,13 @@ async def get_class(
     class_id: str = Path(..., description="Class ID"),
 ):
     """Get an MMO class by ID."""
-    return service.get_class(class_id)
+    return get_service().get_class(class_id)
 
 
 @app.post("/classes", response_model=MMOClass, status_code=201, tags=["Classes"])
 async def create_class(class_data: MMOClassCreate):
     """Create a new MMO class."""
-    return service.create_class(class_data)
+    return get_service().create_class(class_data)
 
 
 @app.put("/classes/{class_id}", response_model=MMOClass, tags=["Classes"])
@@ -95,7 +113,7 @@ async def update_class(
     update_data: MMOClassUpdate = ...,
 ):
     """Update an MMO class."""
-    return service.update_class(class_id, update_data)
+    return get_service().update_class(class_id, update_data)
 
 
 @app.delete("/classes/{class_id}", status_code=204, tags=["Classes"])
@@ -103,7 +121,7 @@ async def delete_class(
     class_id: str = Path(..., description="Class ID"),
 ):
     """Delete an MMO class."""
-    service.delete_class(class_id)
+    get_service().delete_class(class_id)
     return None
 
 
@@ -115,7 +133,7 @@ async def list_slots(
     limit: int = Query(100, ge=1, le=1000, description="Maximum items to return"),
 ):
     """List all MMO slots with pagination."""
-    return service.list_slots(offset=offset, limit=limit)
+    return get_service().list_slots(offset=offset, limit=limit)
 
 
 @app.get("/slots/{slot_id}", response_model=MMOSlot, tags=["Slots"])
@@ -123,13 +141,13 @@ async def get_slot(
     slot_id: str = Path(..., description="Slot ID"),
 ):
     """Get an MMO slot by ID."""
-    return service.get_slot(slot_id)
+    return get_service().get_slot(slot_id)
 
 
 @app.post("/slots", response_model=MMOSlot, status_code=201, tags=["Slots"])
 async def create_slot(slot_data: MMOSlotCreate):
     """Create a new MMO slot."""
-    return service.create_slot(slot_data)
+    return get_service().create_slot(slot_data)
 
 
 @app.delete("/slots/{slot_id}", status_code=204, tags=["Slots"])
@@ -137,7 +155,7 @@ async def delete_slot(
     slot_id: str = Path(..., description="Slot ID"),
 ):
     """Delete an MMO slot."""
-    service.delete_slot(slot_id)
+    get_service().delete_slot(slot_id)
     return None
 
 
@@ -146,13 +164,13 @@ async def delete_slot(
 @app.get("/metrics", response_model=MMOMetrics, tags=["Metrics"])
 async def get_metrics():
     """Get current MMO metrics."""
-    return service.get_metrics()
+    return get_service().get_metrics()
 
 
 @app.post("/metrics/recalculate", response_model=MMOMetrics, tags=["Metrics"])
 async def recalculate_metrics():
     """Trigger metrics recalculation."""
-    return service.recalculate_metrics()
+    return get_service().recalculate_metrics()
 
 
 # ==================== Schema Endpoints ====================
@@ -160,12 +178,15 @@ async def recalculate_metrics():
 @app.get("/schema", response_model=MMOSchema, tags=["Schema"])
 async def get_schema():
     """Get full MMO schema including classes, slots, and metrics."""
-    return service.get_schema()
+    return get_service().get_schema()
 
 
 # Startup event
 @app.on_event("startup")
 async def startup_event():
+    global service, _service_db_path
+    service = MMOService()
+    _service_db_path = get_db_path("mmo.db")
     logger.info("MMO Service starting up...")
     logger.info(f"Environment: {settings.omnicore_env}")
     logger.info(f"Database path: {settings.database_path}")
@@ -173,4 +194,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    global service, _service_db_path
+    service = None
+    _service_db_path = None
     logger.info("MMO Service shutting down...")

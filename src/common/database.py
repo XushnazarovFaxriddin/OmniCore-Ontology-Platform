@@ -25,7 +25,8 @@ def get_db_path(db_name: str) -> str:
     Returns:
         Full path to the database file
     """
-    db_dir = settings.database_path
+    # Resolve database directory from the latest environment value (falls back to settings)
+    db_dir = os.environ.get("DATABASE_PATH", settings.database_path)
     Path(db_dir).mkdir(parents=True, exist_ok=True)
     return os.path.join(db_dir, db_name)
 
@@ -59,6 +60,8 @@ class DatabaseManager:
         Yields:
             sqlite3.Connection: Database connection
         """
+        # Ensure the target directory still exists (e.g., if temp dirs were cleaned up between runs)
+        self._ensure_db_directory()
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")

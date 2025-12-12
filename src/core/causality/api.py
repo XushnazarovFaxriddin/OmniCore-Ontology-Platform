@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import settings
+from common.database import get_db_path
 from common.logging_config import setup_logging, get_logger
 from common.exceptions import NotFoundError, OmniCoreException
 from common.models import PaginatedResponse, HealthResponse, HealthStatus
@@ -38,8 +39,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize service
-service = CausalityService()
+service: CausalityService | None = None
+_service_db_path: str | None = None
+
+
+def get_service() -> CausalityService:
+    """Return an initialized service instance."""
+    global service, _service_db_path
+
+    current_db_path = get_db_path("causality.db")
+    needs_new_service = service is None or _service_db_path != current_db_path
+
+    if needs_new_service:
+        service = CausalityService()
+        _service_db_path = current_db_path
+    else:
+        # If the backing DB was cleaned up (e.g., temp dir deleted), re-create the schema
+        if not service.store.db.table_exists("causality_links"):
+            service.store._init_schema()
+
+    return service
 
 
 # Exception handlers
@@ -73,13 +92,13 @@ async def list_links(
     causality_type: Optional[CausalityType] = Query(None, description="Filter by causality type"),
 ):
     """List all causality links with pagination."""
-    return service.list_links(offset=offset, limit=limit, causality_type=causality_type)
+    return get_service().list_links(offset=offset, limit=limit, causality_type=causality_type)
 
 
 @app.get("/causality-summary", response_model=CausalitySummary, tags=["Causality"])
 async def get_summary():
     """Get summary statistics for causality links."""
-    return service.get_summary()
+    return get_service().get_summary()
 
 
 @app.get("/causality-links/by-type/{causality_type}", response_model=PaginatedResponse, tags=["Causality"])
@@ -89,7 +108,7 @@ async def get_links_by_type(
     limit: int = Query(50, ge=1, le=1000, description="Maximum items to return"),
 ):
     """Get causality links filtered by type."""
-    return service.get_links_by_type(causality_type=causality_type, offset=offset, limit=limit)
+    return get_service().get_links_by_type(causality_type=causality_type, offset=offset, limit=limit)
 
 
 @app.get("/causality-links/by-entity/{entity_id}", response_model=PaginatedResponse, tags=["Causality"])
@@ -99,7 +118,7 @@ async def get_links_by_entity(
     limit: int = Query(50, ge=1, le=1000, description="Maximum items to return"),
 ):
     """Get causality links involving a specific entity."""
-    return service.get_links_by_entity(entity_id=entity_id, offset=offset, limit=limit)
+    return get_service().get_links_by_entity(entity_id=entity_id, offset=offset, limit=limit)
 
 
 @app.get("/causality-links/{link_id}", response_model=CausalityLink, tags=["Causality"])
@@ -107,13 +126,13 @@ async def get_link(
     link_id: str = Path(..., description="Link ID"),
 ):
     """Get a causality link by ID."""
-    return service.get_link(link_id)
+    return get_service().get_link(link_id)
 
 
 @app.post("/causality-links", response_model=CausalityLink, status_code=201, tags=["Causality"])
 async def create_link(link_data: CausalityLinkCreate):
     """Create a new causality link."""
-    return service.create_link(link_data)
+    return get_service().create_link(link_data)
 
 
 @app.put("/causality-links/{link_id}", response_model=CausalityLink, tags=["Causality"])
@@ -122,7 +141,7 @@ async def update_link(
     update_data: CausalityLinkUpdate = ...,
 ):
     """Update a causality link."""
-    return service.update_link(link_id, update_data)
+    return get_service().update_link(link_id, update_data)
 
 
 @app.delete("/causality-links/{link_id}", status_code=204, tags=["Causality"])
@@ -130,13 +149,16 @@ async def delete_link(
     link_id: str = Path(..., description="Link ID"),
 ):
     """Delete a causality link."""
-    service.delete_link(link_id)
+    get_service().delete_link(link_id)
     return None
 
 
 # Startup event
 @app.on_event("startup")
 async def startup_event():
+    global service, _service_db_path
+    service = CausalityService()
+    _service_db_path = get_db_path("causality.db")
     logger.info("Causality Service starting up...")
     logger.info(f"Environment: {settings.omnicore_env}")
     logger.info(f"Database path: {settings.database_path}")
@@ -144,4 +166,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    global service, _service_db_path
+    service = None
+    _service_db_path = None
     logger.info("Causality Service shutting down...")

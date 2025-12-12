@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import settings
+from common.database import get_db_path
 from common.logging_config import setup_logging, get_logger
 from common.exceptions import NotFoundError, OmniCoreException
 from common.models import PaginatedResponse, HealthResponse, HealthStatus
@@ -38,8 +39,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize service
-service = EpistemicService()
+service: EpistemicService | None = None
+_service_db_path: str | None = None
+
+
+def get_service() -> EpistemicService:
+    """Return an initialized epistemic service."""
+    global service, _service_db_path
+
+    current_db_path = get_db_path("epistemic.db")
+    needs_new_service = service is None or _service_db_path != current_db_path
+
+    if needs_new_service:
+        service = EpistemicService()
+        _service_db_path = current_db_path
+    else:
+        if not service.store.db.table_exists("epistemic_annotations"):
+            service.store._init_schema()
+
+    return service
 
 
 # Exception handlers
@@ -73,13 +91,13 @@ async def list_annotations(
     basis: Optional[EpistemicBasis] = Query(None, description="Filter by epistemic basis"),
 ):
     """List all epistemic annotations with pagination."""
-    return service.list_annotations(offset=offset, limit=limit, basis=basis)
+    return get_service().list_annotations(offset=offset, limit=limit, basis=basis)
 
 
 @app.get("/annotations/summary", response_model=EpistemicSummary, tags=["Epistemic"])
 async def get_summary():
     """Get summary statistics for epistemic annotations."""
-    return service.get_summary()
+    return get_service().get_summary()
 
 
 @app.get("/annotations/by-basis/{basis}", response_model=PaginatedResponse, tags=["Epistemic"])
@@ -89,7 +107,7 @@ async def get_annotations_by_basis(
     limit: int = Query(50, ge=1, le=1000, description="Maximum items to return"),
 ):
     """Get annotations filtered by epistemic basis."""
-    return service.get_annotations_by_basis(basis=basis, offset=offset, limit=limit)
+    return get_service().get_annotations_by_basis(basis=basis, offset=offset, limit=limit)
 
 
 @app.get("/entities/{entity_id}/annotations", response_model=PaginatedResponse, tags=["Epistemic"])
@@ -99,7 +117,7 @@ async def get_entity_annotations(
     limit: int = Query(50, ge=1, le=1000, description="Maximum items to return"),
 ):
     """Get annotations for a specific entity."""
-    return service.get_annotations_for_entity(entity_id=entity_id, offset=offset, limit=limit)
+    return get_service().get_annotations_for_entity(entity_id=entity_id, offset=offset, limit=limit)
 
 
 @app.get("/annotations/{annotation_id}", response_model=EpistemicAnnotation, tags=["Epistemic"])
@@ -107,13 +125,13 @@ async def get_annotation(
     annotation_id: str = Path(..., description="Annotation ID"),
 ):
     """Get an epistemic annotation by ID."""
-    return service.get_annotation(annotation_id)
+    return get_service().get_annotation(annotation_id)
 
 
 @app.post("/annotations", response_model=EpistemicAnnotation, status_code=201, tags=["Epistemic"])
 async def create_annotation(annotation_data: EpistemicAnnotationCreate):
     """Create a new epistemic annotation."""
-    return service.create_annotation(annotation_data)
+    return get_service().create_annotation(annotation_data)
 
 
 @app.put("/annotations/{annotation_id}", response_model=EpistemicAnnotation, tags=["Epistemic"])
@@ -122,7 +140,7 @@ async def update_annotation(
     update_data: EpistemicAnnotationUpdate = ...,
 ):
     """Update an epistemic annotation."""
-    return service.update_annotation(annotation_id, update_data)
+    return get_service().update_annotation(annotation_id, update_data)
 
 
 @app.delete("/annotations/{annotation_id}", status_code=204, tags=["Epistemic"])
@@ -130,13 +148,16 @@ async def delete_annotation(
     annotation_id: str = Path(..., description="Annotation ID"),
 ):
     """Delete an epistemic annotation."""
-    service.delete_annotation(annotation_id)
+    get_service().delete_annotation(annotation_id)
     return None
 
 
 # Startup event
 @app.on_event("startup")
 async def startup_event():
+    global service, _service_db_path
+    service = EpistemicService()
+    _service_db_path = get_db_path("epistemic.db")
     logger.info("Epistemic Service starting up...")
     logger.info(f"Environment: {settings.omnicore_env}")
     logger.info(f"Database path: {settings.database_path}")
@@ -144,4 +165,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    global service, _service_db_path
+    service = None
+    _service_db_path = None
     logger.info("Epistemic Service shutting down...")
