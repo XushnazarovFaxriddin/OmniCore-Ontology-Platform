@@ -5,6 +5,12 @@ $repoRoot = Get-Location
 $env:PYTHONPATH = "$($repoRoot.Path)\src"
 $env:DATABASE_PATH = "$($repoRoot.Path)\data"
 $env:OMNICORE_ENV = "development"
+# Point services to local loopback for dev
+$env:ROOTS_SERVICE_URL = "http://127.0.0.1:8001"
+$env:CAUSALITY_SERVICE_URL = "http://127.0.0.1:8002"
+$env:EPISTEMIC_SERVICE_URL = "http://127.0.0.1:8003"
+$env:MMO_SERVICE_URL = "http://127.0.0.1:8004"
+$env:GLOBAL_SERVICE_URL = "http://127.0.0.1:8005"
 
 # Ensure data directory exists
 if (-not (Test-Path $env:DATABASE_PATH)) {
