@@ -1,0 +1,244 @@
+version: "3.8"
+
+services:
+  # Redis for rate limiting
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: omnicore-redis
+    hostname: redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Group A - Roots Service
+  roots-service:
+    image: localhost/omnicore:base
+    container_name: omnicore-roots
+    hostname: roots-service
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=roots
+      - OMNICORE_PORT=8001
+      - PYTHONPATH=/mnt/shared/src
+      - DATABASE_PATH=/mnt/shared/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /mnt/shared/src/core/roots
+    command: uvicorn api:app --host 0.0.0.0 --port 8001
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group B - Causality Service (GPU 0)
+  causality-service:
+    image: localhost/omnicore:base
+    container_name: omnicore-causality
+    hostname: causality-service
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=causality
+      - OMNICORE_PORT=8002
+      - PYTHONPATH=/mnt/shared/src
+      - DATABASE_PATH=/mnt/shared/data
+      - CUDA_VISIBLE_DEVICES=0
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    devices:
+      - nvidia.com/gpu=0
+    working_dir: /mnt/shared/src/core/causality
+    command: uvicorn api:app --host 0.0.0.0 --port 8002
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group C - Epistemic Service
+  epistemic-service:
+    image: localhost/omnicore:base
+    container_name: omnicore-epistemic
+    hostname: epistemic-service
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8003:8003"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=epistemic
+      - OMNICORE_PORT=8003
+      - PYTHONPATH=/mnt/shared/src
+      - DATABASE_PATH=/mnt/shared/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /mnt/shared/src/core/epistemic
+    command: uvicorn api:app --host 0.0.0.0 --port 8003
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group D - MMO Service
+  mmo-service:
+    image: localhost/omnicore:base
+    container_name: omnicore-mmo
+    hostname: mmo-service
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8004:8004"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=mmo
+      - OMNICORE_PORT=8004
+      - PYTHONPATH=/mnt/shared/src
+      - DATABASE_PATH=/mnt/shared/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /mnt/shared/src/core/mmo
+    command: uvicorn api:app --host 0.0.0.0 --port 8004
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group E - Global Ontology Service
+  global-ontology-service:
+    image: localhost/omnicore:base
+    container_name: omnicore-global
+    hostname: global-ontology-service
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "127.0.0.1:8005:8005"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=global
+      - OMNICORE_PORT=8005
+      - PYTHONPATH=/mnt/shared/src
+      - ROOTS_SERVICE_URL=http://roots-service:8001
+      - CAUSALITY_SERVICE_URL=http://causality-service:8002
+      - EPISTEMIC_SERVICE_URL=http://epistemic-service:8003
+      - MMO_SERVICE_URL=http://mmo-service:8004
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /mnt/shared/src/core/global_srv
+    command: uvicorn api:app --host 0.0.0.0 --port 8005
+    depends_on:
+      - roots-service
+      - causality-service
+      - epistemic-service
+      - mmo-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group F - API Gateway (GPU 1)
+  api-gateway:
+    image: localhost/omnicore:base
+    container_name: omnicore-gateway
+    hostname: api-gateway
+    user: "10000:10000"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "0.0.0.0:8000:8000"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - OMNICORE_SERVICE=gateway
+      - OMNICORE_PORT=8000
+      - PYTHONPATH=/mnt/shared/src
+      - ROOTS_SERVICE_URL=http://roots-service:8001
+      - CAUSALITY_SERVICE_URL=http://causality-service:8002
+      - EPISTEMIC_SERVICE_URL=http://epistemic-service:8003
+      - MMO_SERVICE_URL=http://mmo-service:8004
+      - GLOBAL_SERVICE_URL=http://global-ontology-service:8005
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-omnicore-dev-secret-key}
+      - JWT_ALGORITHM=HS256
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW=60
+      - CUDA_VISIBLE_DEVICES=1
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    devices:
+      - nvidia.com/gpu=1
+    working_dir: /mnt/shared/src/core/gateway
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - redis
+      - global-ontology-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Group G - React Dashboard
+  dashboard-ui:
+    image: localhost/omnicore:base
+    container_name: omnicore-ui
+    hostname: dashboard-ui
+    user: "10000:10000"
+    cpus: 2
+    mem_limit: 4g
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /mnt/extra/omnicore-shared:/mnt/shared
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:8000/api
+    working_dir: /mnt/shared/src/frontend/omnicloud-ui
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  redis-data:
