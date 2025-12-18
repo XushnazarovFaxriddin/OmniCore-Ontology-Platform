@@ -1022,9 +1022,9 @@ MIT License - See LICENSE file for details.
 
 ## Version History
 
-| Version | Date | Highlights |
-|---------|------|------------|
-| v10.0.0 | 2024 | Initial v10 release with SLM integration |
+| Version | Date       | Highlights |
+|---------|------------|------------|
+| v10.0.0 | 2025.12.19 | Initial v10 release with SLM integration |
 
 ---
 
