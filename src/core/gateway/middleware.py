@@ -13,7 +13,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from common.config import settings
 from common.logging_config import get_logger
 from common.auth import auth_service, TokenData
-from common.exceptions import AuthenticationError, RateLimitError
+from common.exceptions import (
+    AuthenticationError,
+    RateLimitError,
+    OmniCoreException,
+    ServiceUnavailableError,
+)
 
 logger = get_logger(__name__)
 
@@ -93,18 +98,28 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limit = settings.rate_limit_requests
         self.window = settings.rate_limit_window
         self._redis: Optional[redis.Redis] = None
+        self._disabled = False  # Disable after first failed attempt to avoid per-request hangs
 
     async def _get_redis(self):
         """Get or create Redis connection."""
-        if not REDIS_AVAILABLE:
+        if not REDIS_AVAILABLE or self._disabled:
             return None
         if self._redis is None:
             try:
-                self._redis = redis.from_url(self.redis_url, decode_responses=True)
+                # Use short timeouts so missing Redis doesn't block requests
+                self._redis = redis.from_url(
+                    self.redis_url,
+                    decode_responses=True,
+                    socket_timeout=0.5,
+                    socket_connect_timeout=0.5,
+                )
                 await self._redis.ping()
             except Exception as e:
                 logger.warning(f"Redis connection failed: {e}")
                 self._redis = None
+                # In development, permanently disable after first failure to prevent request stalls
+                if settings.omnicore_env == "development":
+                    self._disabled = True
         return self._redis
 
     async def dispatch(self, request: Request, call_next: Callable):
@@ -195,6 +210,15 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
         """Handle exceptions and return proper error responses."""
         try:
             return await call_next(request)
+        except OmniCoreException as e:
+            logger.warning(f"Handled OmniCoreException: {e.message}")
+            return JSONResponse(
+                status_code=e.status_code,
+                content={
+                    "error": e.message,
+                    "detail": e.detail if settings.omnicore_env == "development" else None,
+                },
+            )
         except HTTPException:
             raise
         except Exception as e:

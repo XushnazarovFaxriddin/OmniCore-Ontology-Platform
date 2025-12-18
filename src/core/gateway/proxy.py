@@ -4,6 +4,7 @@ Service proxy for forwarding requests to backend services.
 
 from typing import Optional, Any
 from datetime import datetime
+from urllib.parse import urlparse
 
 import httpx
 
@@ -22,12 +23,20 @@ class ServiceProxy:
 
     def __init__(self):
         """Initialize the service proxy with HTTP clients."""
+        def _localize(url: str, fallback_port: int) -> str:
+            """If running locally, rewrite container hostnames to localhost."""
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+            if settings.omnicore_env.lower() == "development" and host not in {"localhost", "127.0.0.1", "0.0.0.0"}:
+                return f"http://localhost:{fallback_port}"
+            return url
+
         self.services = {
-            "roots": settings.roots_service_url,
-            "causality": settings.causality_service_url,
-            "epistemic": settings.epistemic_service_url,
-            "mmo": settings.mmo_service_url,
-            "global": settings.global_service_url,
+            "roots": _localize(settings.roots_service_url, settings.roots_service_port),
+            "causality": _localize(settings.causality_service_url, settings.causality_service_port),
+            "epistemic": _localize(settings.epistemic_service_url, settings.epistemic_service_port),
+            "mmo": _localize(settings.mmo_service_url, settings.mmo_service_port),
+            "global": _localize(settings.global_service_url, settings.global_service_port),
         }
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -106,6 +115,9 @@ class ServiceProxy:
         except httpx.TimeoutException as e:
             logger.error(f"Timeout connecting to {service}: {e}")
             raise ServiceUnavailableError(service, f"Timeout: {e}")
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error talking to {service}: {e}")
+            raise ServiceUnavailableError(service, str(e))
 
     async def health_check(self, service: str) -> ServiceHealthDetail:
         """

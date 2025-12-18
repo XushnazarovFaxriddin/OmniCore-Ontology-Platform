@@ -4,6 +4,7 @@ Business logic for the Global Ontology Service.
 
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 
 from common.config import settings
 from common.logging_config import get_logger
@@ -31,10 +32,18 @@ class GlobalService:
 
     def __init__(self):
         """Initialize the global service with HTTP clients for each service."""
-        self.roots_client = HttpClient(settings.roots_service_url)
-        self.causality_client = HttpClient(settings.causality_service_url)
-        self.epistemic_client = HttpClient(settings.epistemic_service_url)
-        self.mmo_client = HttpClient(settings.mmo_service_url)
+        def _localize(url: str, fallback_port: int) -> str:
+            """Rewrite container hostnames to localhost in development."""
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+            if settings.omnicore_env.lower() == "development" and host not in {"localhost", "127.0.0.1", "0.0.0.0"}:
+                return f"http://localhost:{fallback_port}"
+            return url
+
+        self.roots_client = HttpClient(_localize(settings.roots_service_url, settings.roots_service_port), timeout=5.0)
+        self.causality_client = HttpClient(_localize(settings.causality_service_url, settings.causality_service_port), timeout=5.0)
+        self.epistemic_client = HttpClient(_localize(settings.epistemic_service_url, settings.epistemic_service_port), timeout=5.0)
+        self.mmo_client = HttpClient(_localize(settings.mmo_service_url, settings.mmo_service_port), timeout=5.0)
 
         self.services = {
             "roots": self.roots_client,
@@ -61,11 +70,14 @@ class GlobalService:
             total_epistemic_annotations=0,
             total_mmo_classes=0,
             total_mmo_slots=0,
+            total_ontologies_imported=0,
             roots_by_type={},
             causality_by_type={},
             epistemic_by_basis={},
             avg_causality_confidence=0.0,
             avg_epistemic_certainty=0.0,
+            mo_version="mo:v0.0.0",
+            mmo_score=0.0,
             last_updated=datetime.utcnow(),
         )
 

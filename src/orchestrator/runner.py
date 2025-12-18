@@ -43,6 +43,8 @@ class ServiceConfig:
     name: str
     module: str              # Python module path
     port: int
+    command: Optional[List[str]] = None   # Optional custom start command
+    workdir: Optional[Path] = None        # Optional working directory
     depends_on: List[str] = field(default_factory=list)
     gpu_required: bool = False
     gpu_fraction: float = 0.0
@@ -126,6 +128,16 @@ class ServiceManager:
             depends_on=["roots", "causality", "epistemic", "mmo", "global"],
             health_endpoint="/health"
         ),
+        "dashboard": ServiceConfig(
+            name="Dashboard UI",
+            module="frontend.omnicloud-ui",  # placeholder; command-driven
+            port=3000,
+            command=["npm", "run", "dev"],
+            workdir=Path("src/frontend/omnicloud-ui"),
+            depends_on=["gateway"],
+            health_endpoint="/",
+            startup_timeout=60,
+        ),
     }
 
     def __init__(self, project_root: Optional[Path] = None):
@@ -154,6 +166,47 @@ class ServiceManager:
 
         return order
 
+    def _kill_port_process(self, port: int):
+        """Force-kill any process listening on the given port (best effort)."""
+        try:
+            if os.name == "nt":
+                # Parse netstat output to find PIDs in LISTENING state
+                result = subprocess.run(
+                    ["netstat", "-ano"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                for line in result.stdout.splitlines():
+                    if f":{port} " in line and "LISTENING" in line:
+                        parts = line.split()
+                        pid = parts[-1]
+                        logger.warning(f"Port {port} busy (pid {pid}), force-killing")
+                        subprocess.run(
+                            ["taskkill", "/PID", pid, "/F", "/T"],
+                            check=False,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+            else:
+                # Try lsof on POSIX
+                result = subprocess.run(
+                    ["lsof", "-t", f"-i:{port}"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                for pid in result.stdout.split():
+                    logger.warning(f"Port {port} busy (pid {pid}), force-killing")
+                    subprocess.run(
+                        ["kill", "-9", pid],
+                        check=False,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to check/kill port {port}: {e}")
+
     async def start_service(self, name: str, wait_healthy: bool = True) -> bool:
         """Start a single service"""
         if name not in self.SERVICES:
@@ -175,31 +228,63 @@ class ServiceManager:
             return True
 
         logger.info(f"Starting {config.name} on port {config.port}...")
+        # Make sure the port is free from any orphaned process
+        self._kill_port_process(config.port)
 
         # Build environment
         env = os.environ.copy()
         env["OMNICORE_SERVICE"] = name
         env["OMNICORE_PORT"] = str(config.port)
+        # Ensure subprocess can import project modules without needing editable install
+        src_path = str(self.project_root / "src")
+        current_pythonpath = env.get("PYTHONPATH", "")
+        paths = [p for p in current_pythonpath.split(os.pathsep) if p]
+        if src_path not in paths:
+            paths.insert(0, src_path)
+        env["PYTHONPATH"] = os.pathsep.join(paths)
 
         if config.gpu_required and self.settings.gpu_enabled:
             env["CUDA_VISIBLE_DEVICES"] = self.settings.gpu_device_ordinal
 
-        # Start uvicorn process
-        cmd = [
-            sys.executable, "-m", "uvicorn",
-            config.module,
-            "--host", "0.0.0.0",
-            "--port", str(config.port),
-            "--log-level", "info"
-        ]
+        # Determine command and working directory
+        if config.command:
+            cmd = list(config.command)
+            # Windows: use npm.cmd so subprocess can find the executable
+            if os.name == "nt" and cmd and cmd[0] == "npm":
+                cmd[0] = "npm.cmd"
+        else:
+            cmd = [
+                sys.executable, "-m", "uvicorn",
+                config.module,
+                "--host", "0.0.0.0",
+                "--port", str(config.port),
+                "--log-level", "info"
+            ]
+
+        cwd = self.project_root
+        if config.workdir:
+            workdir_path = config.workdir if config.workdir.is_absolute() else self.project_root / config.workdir
+            cwd = workdir_path
 
         try:
+            creationflags = 0
+            start_new_session = False
+            if os.name == "nt":
+                # Allow taskkill to terminate the entire process tree on Windows
+                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                # Start new session so we can kill the process group on POSIX
+                start_new_session = True
+
             process = subprocess.Popen(
                 cmd,
-                cwd=str(self.project_root),
+                cwd=str(cwd),
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                # Inherit stdio so services don't block when pipe buffers fill
+                stdout=None,
+                stderr=None,
+                creationflags=creationflags,
+                start_new_session=start_new_session,
             )
 
             instance = ServiceInstance(
@@ -254,10 +339,26 @@ class ServiceManager:
         instance = self.instances[name]
         if instance.process:
             logger.info(f"Stopping {name}...")
-            instance.process.terminate()
+            pid = instance.process.pid
+            try:
+                if os.name == "nt":
+                    # Terminate process tree on Windows (npm -> node, uvicorn children, etc.)
+                    subprocess.run(
+                        ["taskkill", "/PID", str(pid), "/T", "/F"],
+                        check=False,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                else:
+                    # Kill the whole process group on POSIX
+                    os.killpg(os.getpgid(pid), signal.SIGTERM)
+            except Exception as e:
+                logger.warning(f"Failed to send termination signal to {name} (pid {pid}): {e}")
+
             try:
                 instance.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
+                logger.warning(f"{name} did not exit gracefully, forcing kill")
                 instance.process.kill()
 
         instance.status = ServiceStatus.STOPPED
@@ -286,6 +387,10 @@ class ServiceManager:
 
         for name in order:
             await self.stop_service(name)
+            # Also ensure the port is clear even if process not tracked
+            config = self.SERVICES.get(name)
+            if config:
+                self._kill_port_process(config.port)
 
         logger.info("All services stopped")
 

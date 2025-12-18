@@ -191,6 +191,11 @@ class Settings(BaseSettings):
         case_sensitive = False
         extra = "ignore"
 
+    @property
+    def omnicore_log_level(self) -> str:
+        """Backward compatibility alias for logging level."""
+        return self.log_level
+
     def get_cors_origins(self) -> List[str]:
         """Parse CORS origins from comma-separated string."""
         if self.cors_origins == "*":
