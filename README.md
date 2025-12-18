@@ -2,713 +2,308 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
-[![React 18](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-SLM-orange.svg)](https://ollama.ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **AI-Orchestrated Ontological Computing System**
 **Deployment Target**: PARAM BILIM Supercomputer (AlmaLinux 8.9, Podman, NVIDIA A100 GPUs)
+
+> *"Start deterministic, augment intelligently, evolve autonomously — without sacrificing verifiability."*
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Data Models](#data-models)
-4. [Project Structure](#project-structure)
-5. [Setup on Windows (Local Development)](#setup-on-windows-local-development)
-6. [Setup on AlmaLinux 8.9 (PARAM BILIM)](#setup-on-almalinux-89-param-bilim)
-7. [Running the Services](#running-the-services)
-8. [API Documentation](#api-documentation)
-9. [Testing](#testing)
-10. [Configuration Reference](#configuration-reference)
-11. [Troubleshooting](#troubleshooting)
+2. [Key Features](#key-features)
+3. [Architecture](#architecture)
+4. [Quick Start](#quick-start)
+5. [Installation](#installation)
+6. [Usage](#usage)
+7. [API Reference](#api-reference)
+8. [SLM Integration](#slm-integration)
+9. [Configuration](#configuration)
+10. [Development](#development)
+11. [Deployment](#deployment)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Overview
 
-### Mission Statement
+OmniCore is the world's first **self-evolving meta-ontological platform** that:
 
-OmniCore is the world's first **self-evolving meta-ontological platform** designed to:
-
-- ✅ **Unify** heterogeneous ontologies into a coherent Meta-Ontology (MO)
-- ✅ **Evaluate** MO quality via a self-improving Meta-Meta-Ontology (MMO)
-- ✅ **Support** explainable, auditable AI reasoning grounded in formal roots & causality
-- ✅ **Scale** from student MVP → zero-human-intervention HPC service
-
-### Architectural Philosophy (v10 Unified Principle)
-
-> *"Start deterministic, augment intelligently, evolve autonomously — without sacrificing verifiability."*
-
-1. **Deterministic Core (Horizon 1)**: All structured data (OWL/RDF) parsed losslessly
-2. **AI-Augmented Layer (Horizon 2–3)**: LLMs used only where semantics outweigh syntax
-3. **Autonomous Evolution (Horizon 4–5)**: Multi-agent AI operates under invariant constraints
+- ✅ **Unifies** heterogeneous ontologies into a coherent Meta-Ontology (MO)
+- ✅ **Evaluates** MO quality via self-calibrating Meta-Meta-Ontology (MMO) metrics
+- ✅ **Augments** with Small Language Models (SLM) for intelligent inference
+- ✅ **Evolves** through AI-driven harvesting, conflict resolution, and strategic planning
+- ✅ **Maintains** full provenance tracking and human oversight capabilities
 
 ### Three-Horizon Strategy
 
-| Horizon | Timeline | Goal | Key Metrics |
-|---------|----------|------|-------------|
-| H0: Preparations | Week 1 | Infrastructure baseline | Podman, shared GPU pool |
-| H1: Foundation | Weeks 2-5 | Student-built microservices | 80%+ test coverage |
-| H2: Augmentation | Month 2 | Autonomous harvesting | 100+ ontologies, 95% conflict resolution |
-| H3: Autonomy | Months 3-6 | Multi-AI orchestration | ≤2% human intervention |
+| Horizon | Phase | Goal | Key Deliverables |
+|---------|-------|------|------------------|
+| **H1** | Foundation | Student-built microservices | 80%+ test coverage, live deployment |
+| **H2** | Augmentation | AI-enhanced operations | 100+ ontologies, 95% auto-resolution |
+| **H3** | Autonomy | Multi-AI orchestration | ≤2% human intervention |
+
+---
+
+## Key Features
+
+### Core Services
+- **Roots Service**: 4 ontological root types (EXTANT, ABSTRACT, MENTAL, FICTIVE)
+- **Causality Service**: 5 causality types (Aristotelian + Emergent)
+- **Epistemic Service**: Knowledge annotations with certainty tracking
+- **MMO Service**: Self-calibrating quality metrics
+
+### AI Capabilities (v10)
+- **SLM Integration**: Ollama/HuggingFace for local inference
+- **Root Type Inference**: AI-powered entity classification
+- **Causality Extraction**: Implicit relationship discovery
+- **Conflict Resolution**: Multi-agent philosophical debate
+- **Strategic Planning**: Quarterly autonomous review
+
+### Safety & Governance
+- **Provenance Tracking**: Full audit trail for all entities
+- **Human Oversight**: SIGUSR1 halt signal, approval workflows
+- **Rollback Support**: Version-controlled MO snapshots
+- **Ethical Alerts**: Bias detection and flagging
 
 ---
 
 ## Architecture
 
-The platform consists of **7 microservices** following a modular architecture:
-
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Human Oversight (v10)                        │
-│  • Ethical halt (SIGUSR1)  • Monthly review  • Bias audit       │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                 Core Ontological Engine                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Roots   │ │Causality │ │Epistemic │ │   MMO    │           │
-│  │  :8001   │ │  :8002   │ │  :8003   │ │  :8004   │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│              Global Ontology Service (:8005)                    │
-│  • MO Merge Engine  • Provenance tracking  • Versioned store    │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                   API Gateway (:8000)                           │
-│  • JWT Auth  • Rate limiting  • Request routing                 │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-         ┌──────────────────────┴──────────────────────┐
-         │                                             │
-┌─────────────────┐                          ┌─────────────────┐
-│ React Dashboard │                          │   CLI / SDK     │
-│     (:3000)     │                          │  (Python/JS)    │
-└─────────────────┘                          └─────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                       Human Oversight Layer                          │
+│  • SIGUSR1 Halt  • Quarterly Review  • Ethical Alerts  • Approvals  │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+┌──────────────────────────────────────────────────────────────────────┐
+│                        AI Services Layer                             │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │
+│  │ SLM Service │ │  Harvesting │ │  Conflict   │ │  Strategic  │    │
+│  │   :8006     │ │    Swarm    │ │ Resolution  │ │   Meta-AI   │    │
+│  │ Llama/Gemma │ │  (Async)    │ │  (Debate)   │ │ (Quarterly) │    │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘    │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+┌──────────────────────────────────────────────────────────────────────┐
+│                     Core Ontological Engine                          │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                │
+│  │  Roots   │ │Causality │ │Epistemic │ │   MMO    │                │
+│  │  :8001   │ │  :8002   │ │  :8003   │ │  :8004   │                │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘                │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+┌──────────────────────────────────────────────────────────────────────┐
+│              Global Ontology Service (:8005)                         │
+│  • MO Merge Engine  • RDFLib Parser  • Provenance  • Snapshots      │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+┌──────────────────────────────────────────────────────────────────────┐
+│                      API Gateway (:8000)                             │
+│  • JWT/API Key Auth  • Rate Limiting (Redis)  • Request Routing     │
+└──────────────────────────────────────────────────────────────────────┘
+                                  │
+              ┌───────────────────┴───────────────────┐
+              │                                       │
+    ┌─────────────────┐                    ┌─────────────────┐
+    │ React Dashboard │                    │   CLI / SDK     │
+    │     (:3000)     │                    │    omnicore     │
+    └─────────────────┘                    └─────────────────┘
 ```
 
-### Service Details
+### Service Ports
 
 | Service | Port | GPU | Description |
 |---------|------|-----|-------------|
-| **API Gateway** (F) | 8000 | GPU 1 | Unified entry point with JWT/API key auth, rate limiting |
-| **Roots Service** (A) | 8001 | - | Manages 4 ontological root types |
-| **Causality Service** (B) | 8002 | GPU 0 | Manages 5 causality types (Aristotelian + Emergent) |
-| **Epistemic Service** (C) | 8003 | - | Manages knowledge annotations with certainty |
-| **MMO Service** (D) | 8004 | - | Meta-Meta-Ontology classes, slots, and quality metrics |
-| **Global Service** (E) | 8005 | - | Aggregates data from all services, health monitoring |
-| **React Dashboard** (G) | 3000 | - | Web-based management and visualization UI |
+| API Gateway | 8000 | - | Unified entry point |
+| Roots | 8001 | - | Entity classification |
+| Causality | 8002 | 0.25 A100 | Causal inference |
+| Epistemic | 8003 | - | Knowledge annotations |
+| MMO | 8004 | - | Quality metrics |
+| Global | 8005 | - | MO core engine |
+| SLM | 8006 | 0.25 A100 | Language model inference |
+| Dashboard | 3000 | - | Web UI |
+| Ollama | 11434 | 1 GPU | Local LLM server |
 
 ---
 
-## Data Models
+## Quick Start
 
-### Root Types (4 Fundamental Types)
-
-Based on the v10 specification's formal ontological model:
-
-| Type | Description | Example |
-|------|-------------|---------|
-| **EXTANT** | Entities with spatiotemporal location | Physical objects, events |
-| **ABSTRACT** | Atemporal, mind-independent structures | Mathematical concepts, taxonomies |
-| **MENTAL** | Subjective, first-person accessible states | Experienced pain, emotions |
-| **FICTIVE** | Context-dependent representations | "Sherlock Holmes", simulations |
-
-### Causality Framework (5 Types)
-
-| Type | Predicate | Example |
-|------|-----------|---------|
-| **EFFICIENT** | `causesDirectly` | hammer → nail_driving |
-| **FINAL** | `servesPurpose` | nest → offspring_protection |
-| **MATERIAL** | `constitutedBy` | statue → bronze |
-| **FORMAL** | `structuredAs` | organism → genome |
-| **EMERGENT** | `emergesFrom` | consciousness → neural_network_activity |
-
-### Epistemic Layer
-
-```python
-class EpistemicTag:
-    certainty: float     # 0.0 - 1.0
-    basis: Literal["axiomatic", "empirical", "consensus", "speculative"]
-    source: Optional[str]  # DOI, ontology IRI, model ID
-    timestamp: datetime
-```
-
-### MMO Metrics (Self-Calibrating)
-
-| Metric | Target | Description |
-|--------|--------|-------------|
-| **Completeness** | ≥ 0.85 | Coverage of domain entities |
-| **Coverage** | ≥ 0.70 | Distribution across domains |
-| **Coherence** | ≥ 0.95 | Absence of contradictions |
-| **Utility** | ≥ 0.80 | Query performance metric |
-| **Inclusivity** | ≥ 0.65 | Bias-free representation |
-
----
-
-## Project Structure
-
-```
-OmniCore-Ontology-Platform/
-├── src/
-│   ├── common/                     # Shared utilities
-│   │   ├── __init__.py
-│   │   ├── config.py               # Configuration management
-│   │   ├── logging_config.py       # Centralized logging
-│   │   ├── http_client.py          # Async HTTP client
-│   │   ├── models.py               # Shared Pydantic models
-│   │   ├── database.py             # SQLite utilities
-│   │   ├── auth.py                 # JWT authentication
-│   │   └── exceptions.py           # Custom exceptions
-│   │
-│   ├── core/
-│   │   ├── roots/                  # Group A - Roots Service
-│   │   │   ├── api.py              # FastAPI endpoints
-│   │   │   ├── models.py           # Root-specific models
-│   │   │   ├── store.py            # SQLite storage layer
-│   │   │   └── service.py          # Business logic
-│   │   │
-│   │   ├── causality/              # Group B - Causality Service
-│   │   ├── epistemic/              # Group C - Epistemic Service
-│   │   ├── mmo/                    # Group D - MMO Service
-│   │   ├── global_srv/             # Group E - Global Service
-│   │   └── gateway/                # Group F - API Gateway
-│   │
-│   └── frontend/
-│       └── omnicloud-ui/           # Group G - React Dashboard
-│           ├── src/
-│           │   ├── pages/          # Page components
-│           │   ├── components/     # Reusable components
-│           │   ├── api/            # API client
-│           │   └── types/          # TypeScript types
-│           ├── package.json
-│           └── vite.config.ts
-│
-├── data/                           # SQLite databases (auto-created)
-├── infra/
-│   ├── podman-compose.yml          # Container orchestration
-│   └── env/.env.example            # Environment template
-├── tests/                          # Test suite
-├── requirements.txt                # Python dependencies
-└── README.md
-```
-
----
-
-## Setup on Windows (Local Development)
-
-### Prerequisites
-
-Before starting, ensure you have the following installed:
-
-| Software | Version | Download Link |
-|----------|---------|---------------|
-| **Python** | 3.11+ | [python.org](https://www.python.org/downloads/) |
-| **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) |
-| **Git** | Latest | [git-scm.com](https://git-scm.com/download/win) |
-| **Redis** (optional) | 7+ | [Redis for Windows](https://github.com/microsoftarchive/redis/releases) or use Docker |
-
-### Step 1: Clone the Repository
-
-```powershell
-# Open PowerShell or Command Prompt
-git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
-cd OmniCore-Ontology-Platform
-```
-
-### Step 2: Set Up Python Virtual Environment
-
-```powershell
-# Create virtual environment
-python -m venv .venv
-
-# Activate virtual environment
-.\.venv\Scripts\Activate.ps1    # PowerShell
-# OR
-.\.venv\Scripts\activate.bat     # Command Prompt
-
-# Upgrade pip
-python -m pip install --upgrade pip
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Step 3: Configure Environment
-
-```powershell
-# Copy environment template
-copy infra\env\.env.example .env
-
-# Create data directory
-mkdir data
-```
-
-Edit `.env` file with your preferred settings (optional for development):
-```ini
-OMNICORE_ENV=development
-OMNICORE_LOG_LEVEL=INFO
-DATABASE_PATH=./data
-JWT_SECRET_KEY=your-dev-secret-key-change-in-production
-```
-
-### Step 4: Install Frontend Dependencies
-
-```powershell
-cd src\frontend\omnicloud-ui
-npm install
-cd ..\..\..
-```
-
-### Step 5: Run Services (Development Mode)
-
-**Option A: Run All Services with a Script**
-
-Create `run-dev.ps1` in the project root:
-```powershell
-# run-dev.ps1 - Windows Development Launcher
-$env:PYTHONPATH = (Get-Location).Path + "\src"
-$env:DATABASE_PATH = (Get-Location).Path + "\data"
-$env:OMNICORE_ENV = "development"
-
-# Start backend services in separate terminals
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\roots; python -m uvicorn api:app --port 8001 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\causality; python -m uvicorn api:app --port 8002 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\epistemic; python -m uvicorn api:app --port 8003 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\mmo; python -m uvicorn api:app --port 8004 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\global_srv; python -m uvicorn api:app --port 8005 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\gateway; python -m uvicorn api:app --port 8000 --reload"
-
-# Start frontend
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\frontend\omnicloud-ui; npm run dev"
-
-Write-Host "All services starting..."
-Write-Host "API Gateway: http://localhost:8000"
-Write-Host "Dashboard:   http://localhost:3000"
-Write-Host "API Docs:    http://localhost:8000/docs"
-```
-
-Run with:
-```powershell
-.\run-dev.ps1
-```
-
-**Option B: Run Services Manually (One by One)**
-
-Open separate terminal windows for each service:
-
-```powershell
-# Terminal 1 - Roots Service
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\roots
-python -m uvicorn api:app --port 8001 --reload
-
-# Terminal 2 - Causality Service
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\causality
-python -m uvicorn api:app --port 8002 --reload
-
-# Terminal 3 - Epistemic Service
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\epistemic
-python -m uvicorn api:app --port 8003 --reload
-
-# Terminal 4 - MMO Service
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\mmo
-python -m uvicorn api:app --port 8004 --reload
-
-# Terminal 5 - Global Service
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\global_srv
-python -m uvicorn api:app --port 8005 --reload
-
-# Terminal 6 - API Gateway
-$env:PYTHONPATH="C:\path\to\OmniCore-Ontology-Platform\src"
-$env:DATABASE_PATH="C:\path\to\OmniCore-Ontology-Platform\data"
-cd src\core\gateway
-python -m uvicorn api:app --port 8000 --reload
-
-# Terminal 7 - Frontend
-cd src\frontend\omnicloud-ui
-npm run dev
-```
-
-### Step 6: Verify Installation
-
-```powershell
-# Test API Gateway health
-curl http://localhost:8000/health
-
-# Test all services health
-curl http://localhost:8000/api/health/overview
-
-# Open Dashboard
-start http://localhost:3000
-
-# Open API Documentation
-start http://localhost:8000/docs
-```
-
-### Windows with Docker Desktop (Alternative)
-
-If you prefer containerized development:
-
-```powershell
-# Install Docker Desktop with WSL2 backend
-# Enable Kubernetes in Docker Desktop settings
-
-# Run with docker-compose (convert podman-compose)
-cd infra
-docker-compose -f podman-compose.yml up -d
-
-# Note: You may need to adjust the compose file for Docker compatibility
-```
-
----
-
-## Setup on AlmaLinux 8.9 (PARAM BILIM)
-
-### PARAM BILIM Environment Specifications
-
-| Resource | Per Group | Shared Global |
-|----------|-----------|---------------|
-| CPU | 1 core (dev), 8 cores (batch) | 32-core orchestration node |
-| GPU | 0.25 A100 (80GB) | 2 full A100s (SLM pool) |
-| Storage | 10 GB `/home` | 1 TB `/scratch/omnicore` |
-| Network | Ports 8000–8010 | Gateway (8000), Dashboard (3000) |
-
-### Prerequisites
+### Option 1: Python Virtual Environment (Recommended for Development)
 
 ```bash
-# Verify AlmaLinux version
-cat /etc/redhat-release
-# Expected: AlmaLinux release 8.9
-
-# Check Podman installation
-podman --version
-# Expected: podman version 4.x+
-
-# Check Python version
-python3 --version
-# Expected: Python 3.11+
-
-# Check Node.js (if available)
-node --version
-# Expected: v18+
-```
-
-### Step 1: Clone Repository
-
-```bash
-# Navigate to scratch directory (recommended for PARAM BILIM)
-cd /scratch/omnicore
-
 # Clone repository
 git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
 cd OmniCore-Ontology-Platform
 
-# Set permissions
-chmod -R 755 .
+# Run setup script
+chmod +x scripts/setup.sh
+./scripts/setup.sh --mode venv
+
+# Activate environment
+source venv/bin/activate
+
+# Install Ollama and pull model (for SLM features)
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama3.2:1b
+
+# Start platform
+python -m src.orchestrator.cli start --foreground
 ```
 
-### Step 2: Set Up Python Environment
+### Option 2: Docker/Podman (Recommended for Production)
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate
-
-# Upgrade pip
-pip install --upgrade pip
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Step 3: Configure Environment
-
-```bash
-# Copy environment template
-cp infra/env/.env.example infra/env/.env
-
-# Edit configuration for production
-vi infra/env/.env
-```
-
-Production `.env` configuration:
-```ini
-# Production settings for PARAM BILIM
-OMNICORE_ENV=production
-OMNICORE_LOG_LEVEL=INFO
-
-# Database - use scratch storage
-DATABASE_PATH=/scratch/omnicore/OmniCore-Ontology-Platform/data
-
-# Service URLs (container hostnames)
-ROOTS_SERVICE_URL=http://roots-service:8001
-CAUSALITY_SERVICE_URL=http://causality-service:8002
-EPISTEMIC_SERVICE_URL=http://epistemic-service:8003
-MMO_SERVICE_URL=http://mmo-service:8004
-GLOBAL_SERVICE_URL=http://global-ontology-service:8005
-
-# Security - CHANGE THIS IN PRODUCTION!
-JWT_SECRET_KEY=your-super-secure-production-key-minimum-32-chars
-JWT_ALGORITHM=HS256
-JWT_EXPIRATION_HOURS=24
-
-# Redis
-REDIS_URL=redis://redis:6379/0
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=60
-
-# CORS - restrict in production
-CORS_ORIGINS=http://localhost:3000,http://your-domain.com
-```
-
-### Step 4: Create Data Directory
-
-```bash
-mkdir -p /scratch/omnicore/OmniCore-Ontology-Platform/data
-chmod 755 /scratch/omnicore/OmniCore-Ontology-Platform/data
-```
-
-### Step 5: Build Container Image (if not using pre-built)
-
-```bash
-# Create Containerfile for the base image
-cat > Containerfile << 'EOF'
-FROM python:3.11-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js for frontend
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs
-
-# Create non-root user
-RUN useradd -m -u 10000 omnicore
-USER omnicore
-
-# Set working directory
-WORKDIR /mnt/shared
-
-# Default command
-CMD ["bash"]
-EOF
-
-# Build the image
-podman build -t localhost/omnicore:base -f Containerfile .
-```
-
-### Step 6: Deploy with Podman Compose
-
-```bash
-# Navigate to infra directory
-cd infra
+# Clone and setup
+git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
+cd OmniCore-Ontology-Platform
+./scripts/setup.sh --mode podman
 
 # Start all services
-podman-compose up -d
+podman-compose -f infra/podman-compose.yml up -d
 
-# Verify all containers are running
-podman-compose ps
-
-# Check logs
-podman-compose logs -f api-gateway
+# Verify
+curl http://localhost:8000/health
 ```
 
-### Step 7: Configure Firewall (if needed)
+### Verify Installation
 
 ```bash
-# Allow required ports
-sudo firewall-cmd --permanent --add-port=8000/tcp  # API Gateway
-sudo firewall-cmd --permanent --add-port=3000/tcp  # Dashboard
-sudo firewall-cmd --reload
-```
-
-### Step 8: Set Up as Systemd Service (Optional)
-
-Create `/etc/systemd/system/omnicore.service`:
-
-```ini
-[Unit]
-Description=OmniCore Ontology Platform
-After=network.target
-
-[Service]
-Type=simple
-User=omnicore
-WorkingDirectory=/scratch/omnicore/OmniCore-Ontology-Platform/infra
-ExecStart=/usr/bin/podman-compose up
-ExecStop=/usr/bin/podman-compose down
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable omnicore
-sudo systemctl start omnicore
-sudo systemctl status omnicore
-```
-
-### Step 9: Verify Deployment
-
-```bash
-# Test API Gateway
+# Check all services
 curl http://localhost:8000/health
 
-# Test service health overview
-curl http://localhost:8000/api/health/overview
-
-# Test creating a root entity
-curl -X POST http://localhost:8000/api/roots \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Test Entity", "root_type": "EXTANT", "description": "Test"}'
-
-# Access Dashboard (if GUI available)
-firefox http://localhost:3000 &
-```
-
-### GPU Configuration (PARAM BILIM Specific)
-
-For services requiring GPU access (Causality Service, API Gateway):
-
-```bash
-# Verify NVIDIA drivers
-nvidia-smi
-
-# Check GPU availability for Podman
-podman run --rm --device nvidia.com/gpu=0 nvidia/cuda:11.8-base nvidia-smi
-```
-
-In `podman-compose.yml`, GPU services are configured with:
-```yaml
-devices:
-  - nvidia.com/gpu=0  # For Causality Service
-  - nvidia.com/gpu=1  # For API Gateway
+# Open Dashboard
+open http://localhost:3000  # macOS
+xdg-open http://localhost:3000  # Linux
+start http://localhost:3000  # Windows
 ```
 
 ---
 
-## Running the Services
+## Installation
 
-### Service URLs (After Deployment)
+### Prerequisites
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| API Gateway | http://localhost:8000 | Main entry point |
-| API Documentation | http://localhost:8000/docs | Swagger UI |
-| ReDoc | http://localhost:8000/redoc | Alternative API docs |
-| Dashboard | http://localhost:3000 | React management UI |
-| Health Overview | http://localhost:8000/api/health/overview | All services status |
+| Software | Version | Required For |
+|----------|---------|--------------|
+| Python | 3.11+ | Core services |
+| Node.js | 18+ | Dashboard |
+| Ollama | Latest | SLM inference |
+| Podman/Docker | Latest | Container deployment |
+| Redis | 7+ | Rate limiting |
 
-### Podman Commands Reference
+### Windows Setup
+
+```powershell
+# 1. Clone repository
+git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
+cd OmniCore-Ontology-Platform
+
+# 2. Create virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Create data directory
+mkdir data, logs, snapshots, ontologies
+
+# 5. Install Ollama from https://ollama.ai
+# Then pull model:
+ollama pull llama3.2:1b
+
+# 6. Start platform
+python -m src.orchestrator.cli start
+```
+
+### Linux/macOS Setup
+
+```bash
+# 1. Clone repository
+git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
+cd OmniCore-Ontology-Platform
+
+# 2. Run setup script
+./scripts/setup.sh --mode venv
+
+# 3. Activate environment
+source venv/bin/activate
+
+# 4. Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama serve &
+ollama pull llama3.2:1b
+
+# 5. Start platform
+python -m src.orchestrator.cli start
+```
+
+### AlmaLinux 8.9 (PARAM BILIM)
+
+```bash
+# 1. Navigate to scratch directory
+cd /scratch/omnicore
+
+# 2. Clone and setup
+git clone https://github.com/XushnazarovFaxriddin/OmniCore-Ontology-Platform.git
+cd OmniCore-Ontology-Platform
+./scripts/setup.sh --mode podman
+
+# 3. Configure environment
+cp infra/env/.env.example .env
+vi .env  # Add HF_TOKEN, JWT_SECRET_KEY
+
+# 4. Deploy with Podman
+podman-compose -f infra/podman-compose.yml up -d
+
+# 5. Verify GPU allocation
+nvidia-smi
+podman-compose ps
+```
+
+---
+
+## Usage
+
+### CLI Commands
 
 ```bash
 # Start all services
-podman-compose up -d
+python -m src.orchestrator.cli start
 
-# Stop all services
-podman-compose down
+# Start specific service
+python -m src.orchestrator.cli start --service roots
 
-# View logs
-podman-compose logs -f [service-name]
+# Check status
+python -m src.orchestrator.cli status
 
-# Restart a specific service
-podman-compose restart roots-service
+# Health check
+python -m src.orchestrator.cli health
 
-# Check container status
-podman-compose ps
+# List services
+python -m src.orchestrator.cli services
 
-# Execute command in container
-podman exec -it omnicore-gateway bash
+# Import ontology
+python -m src.orchestrator.cli import https://example.org/ontology.owl --use-slm
 
-# View resource usage
-podman stats
+# SLM operations
+python -m src.orchestrator.cli slm status
+python -m src.orchestrator.cli slm models
+python -m src.orchestrator.cli slm pull llama3.2:1b
+
+# Strategic review
+python -m src.orchestrator.cli strategic review
+
+# Stop platform
+python -m src.orchestrator.cli stop
 ```
 
----
-
-## API Documentation
-
-### Authentication
-
-The API Gateway supports two authentication methods:
-
-**1. JWT Token (Recommended)**
-```bash
-# Get token
-curl -X POST http://localhost:8000/api/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "scopes": ["read", "write"]}'
-
-# Response:
-# {"access_token": "eyJ...", "token_type": "bearer", "expires_in": 86400}
-
-# Use token in requests
-curl http://localhost:8000/api/roots \
-  -H "Authorization: Bearer eyJ..."
-```
-
-**2. API Key**
-```bash
-curl http://localhost:8000/api/roots \
-  -H "X-API-Key: your-api-key"
-```
-
-### Key Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| **Roots** |||
-| `/api/roots` | GET | List all roots (paginated) |
-| `/api/roots` | POST | Create a new root |
-| `/api/roots/{id}` | GET | Get root by ID |
-| `/api/roots/{id}` | PUT | Update root |
-| `/api/roots/{id}` | DELETE | Delete root |
-| `/api/roots/summary` | GET | Get root statistics |
-| `/api/roots/by-type/{type}` | GET | Filter by root type |
-| **Causality** |||
-| `/api/causality-links` | GET/POST | List/create causality links |
-| `/api/causality-links/{id}` | GET/PUT/DELETE | CRUD operations |
-| `/api/causality-summary` | GET | Get causality statistics |
-| **Epistemic** |||
-| `/api/annotations` | GET/POST | List/create annotations |
-| `/api/annotations/{id}` | GET/PUT/DELETE | CRUD operations |
-| `/api/annotations/summary` | GET | Get annotation statistics |
-| **MMO** |||
-| `/api/classes` | GET/POST | List/create MMO classes |
-| `/api/slots` | GET/POST | List/create MMO slots |
-| `/api/metrics` | GET | Get current MMO metrics |
-| `/api/metrics/recalculate` | POST | Trigger metrics recalculation |
-| `/api/schema` | GET | Get full MMO schema |
-| **Global** |||
-| `/api/global/stats` | GET | Global statistics |
-| `/api/global/sample` | GET | Sample data from all services |
-| `/api/global/summary` | GET | Comprehensive summary |
-| `/api/system/health` | GET | All services health status |
-
-### Example Requests
+### API Examples
 
 ```bash
 # Create a root entity
@@ -717,107 +312,236 @@ curl -X POST http://localhost:8000/api/roots \
   -d '{
     "name": "Consciousness",
     "root_type": "MENTAL",
-    "description": "Subjective awareness and experience"
+    "description": "Subjective awareness",
+    "use_slm": true
   }'
 
-# Create a causality link
+# Create causality link
 curl -X POST http://localhost:8000/api/causality-links \
   -H "Content-Type: application/json" \
   -d '{
-    "source_entity_id": "entity-uuid-1",
-    "target_entity_id": "entity-uuid-2",
+    "source_entity_id": "uuid-1",
+    "target_entity_id": "uuid-2",
     "causality_type": "EMERGENT",
     "confidence": 0.85
   }'
 
-# Create an epistemic annotation
-curl -X POST http://localhost:8000/api/annotations \
+# Import ontology with SLM enhancement
+curl -X POST http://localhost:8000/api/ontologies/import \
   -H "Content-Type: application/json" \
   -d '{
-    "entity_id": "entity-uuid-1",
-    "certainty": 0.92,
-    "basis": "empirical",
-    "source": "DOI:10.1234/example"
+    "source_url": "http://purl.obolibrary.org/obo/go.owl",
+    "format": "xml",
+    "use_slm": true,
+    "conflict_resolution": "auto"
   }'
 
 # Get MMO metrics
 curl http://localhost:8000/api/metrics
+
+# Infer root type with SLM
+curl -X POST http://localhost:8006/infer-root-type \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entity_name": "Sherlock Holmes",
+    "description": "Fictional detective character",
+    "context": "Literature"
+  }'
 ```
 
 ---
 
-## Testing
+## API Reference
 
-### Run All Tests
-
-```bash
-# Activate virtual environment
-source .venv/bin/activate  # Linux/Mac
-.\.venv\Scripts\Activate.ps1  # Windows
-
-# Run all tests with verbose output
-pytest tests/ -v
-
-# Run with coverage report
-pytest tests/ -v --cov=src --cov-report=html
-
-# Open coverage report
-open htmlcov/index.html  # Mac
-start htmlcov/index.html  # Windows
-xdg-open htmlcov/index.html  # Linux
-```
-
-### Run Specific Service Tests
+### Authentication
 
 ```bash
-# Test Roots Service
-pytest tests/test_roots.py -v
+# Get JWT token
+curl -X POST http://localhost:8000/api/auth/token \
+  -d '{"username": "admin", "scopes": ["read", "write"]}'
 
-# Test Causality Service
-pytest tests/test_causality.py -v
+# Use token
+curl http://localhost:8000/api/roots \
+  -H "Authorization: Bearer <token>"
 
-# Test Epistemic Service
-pytest tests/test_epistemic.py -v
-
-# Test MMO Service
-pytest tests/test_mmo.py -v
-
-# Test API Gateway
-pytest tests/test_gateway.py -v
-
-# Test Global Service
-pytest tests/test_global.py -v
+# Or use API key
+curl http://localhost:8000/api/roots \
+  -H "X-API-Key: <api-key>"
 ```
 
-### Test Coverage Requirements
+### Endpoints Summary
 
-Per the v10 specification, target **80%+ test coverage** for Horizon 1 completion.
+| Category | Endpoint | Methods |
+|----------|----------|---------|
+| **Auth** | `/api/auth/token` | POST |
+| **Roots** | `/api/roots` | GET, POST |
+| **Roots** | `/api/roots/{id}` | GET, PUT, DELETE |
+| **Causality** | `/api/causality-links` | GET, POST |
+| **Epistemic** | `/api/annotations` | GET, POST |
+| **MMO** | `/api/classes`, `/api/slots` | GET, POST |
+| **MMO** | `/api/metrics` | GET |
+| **Global** | `/api/global/stats` | GET |
+| **Import** | `/api/ontologies/import` | POST |
+| **SLM** | `/api/slm/infer-root-type` | POST |
+| **Health** | `/health` | GET |
 
 ---
 
-## Configuration Reference
+## SLM Integration
+
+### Supported Models
+
+| Provider | Models | Use Case |
+|----------|--------|----------|
+| Ollama | llama3.2:1b, gemma2:2b, mistral:7b | Local inference |
+| HuggingFace | Llama-3.2-1B-Instruct | Cloud/local |
+
+### SLM Tasks
+
+1. **Root Type Inference**: Classify entities into EXTANT/ABSTRACT/MENTAL/FICTIVE
+2. **Causality Extraction**: Discover implicit causal relationships
+3. **Epistemic Annotation**: Generate certainty and basis
+4. **Conflict Resolution**: Multi-agent philosophical debate
+5. **Quality Assessment**: Score ontologies for integration
+
+### Configuration
+
+```bash
+# Environment variables
+SLM_BASE_URL=http://localhost:11434  # Ollama
+SLM_MODEL_NAME=llama3.2:1b
+SLM_FALLBACK_MODEL=gemma2:2b
+SLM_CONFIDENCE_THRESHOLD=0.6
+SLM_TEMPERATURE=0.1
+```
+
+### v10 Safety Rules
+
+- SLM outputs include `ai_confidence` score
+- If confidence < 0.6, fallback to rule-based mapping
+- Low confidence results flagged for human review
+- All enhancements tracked in provenance
+
+---
+
+## Configuration
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `OMNICORE_ENV` | Environment mode | `development` | No |
-| `OMNICORE_LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` | No |
-| `OMNICORE_SERVICE` | Service identifier | - | Auto-set |
-| `OMNICORE_PORT` | Service port | - | Auto-set |
-| `DATABASE_PATH` | SQLite database directory | `/mnt/extra/omnicore-shared/data` | Yes |
-| `JWT_SECRET_KEY` | JWT signing secret | - | **Yes (Production)** |
-| `JWT_ALGORITHM` | JWT algorithm | `HS256` | No |
-| `JWT_EXPIRATION_HOURS` | Token expiration | `24` | No |
-| `REDIS_URL` | Redis connection URL | `redis://redis:6379/0` | No |
-| `RATE_LIMIT_REQUESTS` | Requests per window | `100` | No |
-| `RATE_LIMIT_WINDOW` | Rate limit window (seconds) | `60` | No |
-| `CORS_ORIGINS` | Allowed CORS origins | `*` | No |
-| `ROOTS_SERVICE_URL` | Roots service URL | `http://roots-service:8001` | No |
-| `CAUSALITY_SERVICE_URL` | Causality service URL | `http://causality-service:8002` | No |
-| `EPISTEMIC_SERVICE_URL` | Epistemic service URL | `http://epistemic-service:8003` | No |
-| `MMO_SERVICE_URL` | MMO service URL | `http://mmo-service:8004` | No |
-| `GLOBAL_SERVICE_URL` | Global service URL | `http://global-ontology-service:8005` | No |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OMNICORE_ENV` | development | Environment mode |
+| `DATABASE_PATH` | ./data | SQLite directory |
+| `JWT_SECRET_KEY` | (required) | JWT signing key |
+| `REDIS_URL` | redis://localhost:6379 | Redis connection |
+| `SLM_BASE_URL` | http://localhost:11434 | Ollama URL |
+| `SLM_MODEL_NAME` | llama3.2:1b | Default SLM model |
+| `GPU_ENABLED` | false | Enable GPU acceleration |
+
+### Example .env
+
+```ini
+OMNICORE_ENV=production
+DATABASE_PATH=/scratch/omnicore/data
+JWT_SECRET_KEY=your-secure-key-min-32-chars
+REDIS_URL=redis://redis:6379/0
+SLM_BASE_URL=http://ollama:11434
+SLM_MODEL_NAME=llama3.2:1b
+GPU_ENABLED=true
+CUDA_VISIBLE_DEVICES=0,1
+HF_TOKEN=hf_your_token_here
+```
+
+---
+
+## Development
+
+### Running Tests
+
+```bash
+# All tests
+pytest tests/ -v
+
+# With coverage
+pytest tests/ -v --cov=src --cov-report=html
+
+# Specific service
+pytest tests/test_roots.py -v
+```
+
+### Code Quality
+
+```bash
+# Linting
+ruff check src/
+
+# Format check
+ruff format --check src/
+```
+
+### Project Structure
+
+```
+OmniCore-Ontology-Platform/
+├── src/
+│   ├── common/          # Shared utilities
+│   ├── core/            # Core microservices
+│   │   ├── roots/       # Roots Service
+│   │   ├── causality/   # Causality Service
+│   │   ├── epistemic/   # Epistemic Service
+│   │   ├── mmo/         # MMO Service
+│   │   ├── global_srv/  # Global Service
+│   │   └── gateway/     # API Gateway
+│   ├── ai/              # AI services
+│   │   ├── slm/         # SLM client & service
+│   │   ├── harvesting/  # Ontology harvesting
+│   │   └── strategic/   # Strategic Meta-AI
+│   ├── rdf/             # RDF/OWL parser
+│   ├── orchestrator/    # CLI & orchestration
+│   └── frontend/        # React dashboard
+├── infra/               # Infrastructure configs
+├── scripts/             # Setup scripts
+├── tests/               # Test suite
+├── Dockerfile           # Container image
+└── requirements.txt     # Dependencies
+```
+
+---
+
+## Deployment
+
+### Podman Compose (Production)
+
+```bash
+# Build and start
+podman-compose -f infra/podman-compose.yml up -d
+
+# View logs
+podman-compose logs -f api-gateway
+
+# Scale service
+podman-compose up -d --scale roots-service=2
+
+# Stop
+podman-compose down
+```
+
+### Docker Compose
+
+```bash
+# Same commands, replace podman-compose with docker-compose
+docker-compose -f infra/podman-compose.yml up -d
+```
+
+### Kubernetes (Advanced)
+
+```bash
+# Convert compose to k8s manifests
+kompose convert -f infra/podman-compose.yml
+
+# Apply to cluster
+kubectl apply -f .
+```
 
 ---
 
@@ -825,127 +549,64 @@ Per the v10 specification, target **80%+ test coverage** for Horizon 1 completio
 
 ### Common Issues
 
-**1. Port Already in Use**
+**SLM not responding:**
 ```bash
-# Find process using port
-netstat -tlnp | grep 8000  # Linux
-netstat -ano | findstr 8000  # Windows
+# Check Ollama is running
+curl http://localhost:11434/api/tags
+
+# Pull model if missing
+ollama pull llama3.2:1b
+```
+
+**Port in use:**
+```bash
+# Find process
+lsof -i :8000
 
 # Kill process
-kill -9 <PID>  # Linux
-taskkill /PID <PID> /F  # Windows
+kill -9 <PID>
 ```
 
-**2. Database Locked Error**
+**Database locked:**
 ```bash
-# Remove lock file
+# Remove lock files
 rm data/*.db-journal
-
-# Or restart services
-podman-compose restart
 ```
 
-**3. Python Module Not Found**
+**GPU not detected:**
 ```bash
-# Ensure PYTHONPATH is set
-export PYTHONPATH=/path/to/OmniCore-Ontology-Platform/src
+# Check NVIDIA driver
+nvidia-smi
 
-# Or add to virtual environment
-echo 'export PYTHONPATH=/path/to/src' >> .venv/bin/activate
+# Check container GPU access
+podman run --rm --device nvidia.com/gpu=0 nvidia/cuda:11.8-base nvidia-smi
 ```
 
-**4. Frontend Build Fails**
-```bash
-# Clear npm cache
-npm cache clean --force
-
-# Remove node_modules and reinstall
-rm -rf node_modules package-lock.json
-npm install
-```
-
-**5. Podman Permission Denied**
-```bash
-# Run without root (rootless mode)
-podman-compose --podman-run-args="--userns=keep-id" up -d
-
-# Or adjust SELinux (AlmaLinux)
-sudo setsebool -P container_manage_cgroup on
-```
-
-**6. Services Not Communicating**
-```bash
-# Check network
-podman network ls
-podman network inspect omnicore_default
-
-# Verify DNS resolution
-podman exec omnicore-gateway ping roots-service
-```
-
-### Health Check Commands
+### Health Check
 
 ```bash
-# Quick health check all services
-for port in 8001 8002 8003 8004 8005 8000; do
-  echo "Port $port: $(curl -s http://localhost:$port/health | jq -r .status)"
+# All services
+for port in 8000 8001 8002 8003 8004 8005 8006; do
+  echo "Port $port: $(curl -s http://localhost:$port/health | jq -r .status 2>/dev/null || echo 'down')"
 done
-
-# Detailed system health
-curl -s http://localhost:8000/api/health/overview | jq
 ```
-
-### Logs Location
-
-| Environment | Log Location |
-|-------------|--------------|
-| Development | Console (stdout) |
-| Podman | `podman-compose logs [service]` |
-| Production | `/var/log/omnicore/` (if configured) |
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make changes and add tests
-4. Run tests (`pytest tests/ -v`)
-5. Commit changes (`git commit -m 'Add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Code Standards
-
-- All code requires `REVIEWED_BY: <student_id>` signature
-- Static analysis must pass (`ruff`, `bandit`)
-- Minimum 80% test coverage
-- Follow PEP 8 style guide
 
 ---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 ## Authors
 
-- **Kaizen Group** - Initial development
-- **Fakhriddin Khushnazarov** - Architectural synthesis & implementation
+- **Kaizen Group** - Core development
+- **Fakhriddin Khushnazarov** - Architectural synthesis
 - **Supervisor**: KREMENCHUTSKIY A.
 
 ---
 
-## Acknowledgments
-
-- PARAM BILIM Supercomputer team for infrastructure support
-- FastAPI and Pydantic communities for excellent frameworks
-- The ontology research community for foundational concepts
-
----
-
-**Version**: 10.0
-**Status**: Finalized — Ready for Implementation
-**Last Updated**: December 2025
+**Version**: 10.0.0
+**Status**: Ready for Implementation
+**Target**: PARAM BILIM Supercomputer
