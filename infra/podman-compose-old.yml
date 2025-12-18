@@ -41,15 +41,21 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama-data:/root/.ollama
-    devices:
-      - /dev/nvidia0
-      - /dev/nvidiactl
-      - /dev/nvidia-uvm
     environment:
       - OLLAMA_HOST=0.0.0.0
-      - CUDA_VISIBLE_DEVICES=0
     restart: unless-stopped
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   # Group A - Roots Service
   roots-service:
@@ -97,19 +103,34 @@ services:
     volumes:
       - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
       - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
-    devices:
-      - /dev/nvidia0
-      - /dev/nvidiactl
-      - /dev/nvidia-uvm
     environment:
       - OMNICORE_SERVICE=causality
       - OMNICORE_PORT=8002
+      - DATABASE_PATH=/app/data
       - CUDA_VISIBLE_DEVICES=0
       - GPU_ENABLED=true
+      - OMNICORE_LOG_LEVEL=INFO
       - OMNICORE_ENV=production
       - SLM_BASE_URL=http://ollama:11434
+    working_dir: /app
     command: python -m uvicorn src.core.causality.api:app --host 0.0.0.0 --port 8002
-
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0.25
+              capabilities: [gpu]
 
   # Group C - Epistemic Service
   epistemic-service:
@@ -237,19 +258,39 @@ services:
       - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
       - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
       - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface:Z
-    devices:
-      - /dev/nvidia0
-      - /dev/nvidiactl
-      - /dev/nvidia-uvm
     environment:
       - OMNICORE_SERVICE=slm
       - OMNICORE_PORT=8006
-      - CUDA_VISIBLE_DEVICES=0
-      - GPU_ENABLED=true
-      - OMNICORE_ENV=production
       - SLM_BASE_URL=http://ollama:11434
+      - SLM_MODEL_NAME=llama3.2:1b
+      - SLM_FALLBACK_MODEL=gemma2:2b
+      - SLM_CONFIDENCE_THRESHOLD=0.6
+      - GPU_ENABLED=true
+      - CUDA_VISIBLE_DEVICES=0
+      - HUGGINGFACE_TOKEN=${HF_TOKEN:-}
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /app
     command: python -m uvicorn src.ai.slm.api:app --host 0.0.0.0 --port 8006
-
+    depends_on:
+      ollama:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0.25
+              capabilities: [gpu]
 
   # Group F - API Gateway
   api-gateway:
