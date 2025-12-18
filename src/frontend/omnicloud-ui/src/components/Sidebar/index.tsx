@@ -10,6 +10,13 @@ const navItems = [
   { path: '/health', label: 'System Health', icon: '💚' },
 ];
 
+const aiNavItems = [
+  { path: '/ai/chat', label: 'AI Chat', icon: '💬' },
+  { path: '/ai/assistant', label: 'AI Assistant', icon: '🤖' },
+  { path: '/ai/search', label: 'AI Search', icon: '🔍' },
+  { path: '/ai/models', label: 'AI Models', icon: '⚙️' },
+];
+
 function Sidebar() {
   return (
     <aside className="sidebar">
@@ -33,6 +40,25 @@ function Sidebar() {
             </li>
           ))}
         </ul>
+
+        <div className="sidebar-section">
+          <h3 className="sidebar-section-title">AI / SLM</h3>
+          <ul className="sidebar-nav">
+            {aiNavItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `sidebar-nav-item ${isActive ? 'active' : ''}`
+                  }
+                >
+                  <span className="sidebar-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
       </nav>
     </aside>
   );

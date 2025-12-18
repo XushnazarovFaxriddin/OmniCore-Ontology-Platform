@@ -192,3 +192,110 @@ export interface PaginatedResponse<T> {
   limit: number;
   has_more: boolean;
 }
+
+// AI/SLM Types
+export type AIAgentRole = 'platonist' | 'nominalist' | 'pragmatist' | 'moderator';
+export type ConflictType = 'classification' | 'relationship' | 'property' | 'definition';
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  status: 'available' | 'unavailable' | 'loading';
+  capabilities: string[];
+}
+
+export interface SLMRequest {
+  prompt: string;
+  task_type?: string;
+  max_tokens?: number;
+  temperature?: number;
+  model?: string;
+}
+
+export interface SLMResponse {
+  response: string;
+  model_id: string;
+  confidence: number;
+  tokens_used: number;
+  latency_ms: number;
+}
+
+export interface RootTypeInference {
+  entity_name: string;
+  root_type: RootType;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface CausalityExtraction {
+  source: string;
+  target: string;
+  causality_type: CausalityType;
+  confidence: number;
+  reasoning: string;
+}
+
+export interface EpistemicAnnotationResult {
+  certainty: number;
+  basis: EpistemicBasis;
+  reasoning: string;
+  supporting_evidence: string[];
+  source_reliability: number;
+}
+
+export interface DebateRound {
+  round_number: number;
+  agent_role: AIAgentRole;
+  argument: string;
+  confidence: number;
+  supporting_evidence: string[];
+}
+
+export interface ConflictResolution {
+  conflict_id: string;
+  rounds: DebateRound[];
+  consensus_reached: boolean;
+  consensus_threshold: number;
+  final_resolution: string;
+  supporting_agents: AIAgentRole[];
+  contextual_axiom?: string;
+}
+
+export interface QualityAssessment {
+  name: string;
+  overall_score: number;
+  consistency_score: number;
+  completeness_score: number;
+  clarity_score: number;
+  recommendation: 'integrate' | 'review' | 'reject';
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface StrategicPlan {
+  period: string;
+  objectives: string[];
+  actions: string[];
+  metrics_targets: Record<string, number>;
+  requires_human_approval: boolean;
+  priority_areas: string[];
+}
+
+export interface EntityEnhancement {
+  entity_id: string;
+  enhancement_type: string;
+  original_value?: string;
+  enhanced_value: string;
+  confidence: number;
+  rationale: string;
+  model_id: string;
+}

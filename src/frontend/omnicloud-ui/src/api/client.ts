@@ -20,6 +20,16 @@ import type {
   GlobalSummary,
   SystemHealth,
   PaginatedResponse,
+  SLMRequest,
+  SLMResponse,
+  RootTypeInference,
+  EpistemicAnnotationResult,
+  ConflictResolution,
+  QualityAssessment,
+  StrategicPlan,
+  EntityEnhancement,
+  AIModel,
+  ConflictType,
 } from '../types';
 
 // Get API base URL from environment or default
@@ -311,6 +321,201 @@ export const globalApi = {
 export const healthApi = {
   getOverview: async () => {
     const response = await api.get<SystemHealth>('/health/overview');
+    return response.data;
+  },
+};
+
+// ==================== AI/SLM API ====================
+
+const SLM_API_URL = import.meta.env.VITE_SLM_API_URL || '/api/slm';
+
+const slmApi: AxiosInstance = axios.create({
+  baseURL: SLM_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 60000, // Longer timeout for AI operations
+});
+
+slmApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const aiApi = {
+  // Health & Models
+  getHealth: async () => {
+    const response = await slmApi.get<{ status: string; providers: Record<string, boolean> }>('/health');
+    return response.data;
+  },
+
+  listModels: async () => {
+    const response = await slmApi.get<AIModel[]>('/models');
+    return response.data;
+  },
+
+  // Core Generation
+  generate: async (request: SLMRequest) => {
+    const response = await slmApi.post<SLMResponse>('/generate', request);
+    return response.data;
+  },
+
+  // Chat - for conversational AI
+  chat: async (messages: { role: string; content: string }[], context?: string) => {
+    const systemPrompt = context
+      ? `You are OmniCore AI Assistant, an expert in ontology management and knowledge engineering. Context: ${context}`
+      : 'You are OmniCore AI Assistant, an expert in ontology management, knowledge engineering, and semantic technologies.';
+
+    const prompt = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+    const response = await slmApi.post<SLMResponse>('/generate', {
+      prompt: `${systemPrompt}\n\n${prompt}\nassistant:`,
+      task_type: 'general',
+      max_tokens: 1024,
+      temperature: 0.7,
+    });
+    return response.data;
+  },
+
+  // Root Type Inference
+  inferRootType: async (entityName: string, description: string, context?: string, source?: string) => {
+    const response = await slmApi.post<RootTypeInference>('/infer-root-type', {
+      entity_name: entityName,
+      description,
+      context: context || '',
+      source: source || '',
+    });
+    return response.data;
+  },
+
+  batchInferRootTypes: async (entities: { entity_name: string; description: string; context?: string; source?: string }[]) => {
+    const response = await slmApi.post<RootTypeInference[]>('/batch-infer-root-types', entities);
+    return response.data;
+  },
+
+  // Causality Extraction
+  extractCausality: async (entities: string[], descriptions: string[], context?: string) => {
+    const response = await slmApi.post<{ relationships: Array<{
+      source: string;
+      target: string;
+      causality_type: string;
+      confidence: number;
+      reasoning: string;
+    }> }>('/extract-causality', {
+      entities,
+      descriptions,
+      context: context || '',
+    });
+    return response.data;
+  },
+
+  // Epistemic Annotation
+  annotateEpistemic: async (entityName: string, claim: string, source?: string, context?: string) => {
+    const response = await slmApi.post<EpistemicAnnotationResult>('/annotate-epistemic', {
+      entity_name: entityName,
+      claim,
+      source: source || '',
+      context: context || '',
+    });
+    return response.data;
+  },
+
+  // Conflict Resolution
+  resolveConflict: async (
+    conflictId: string,
+    conflictType: ConflictType,
+    entityA: string,
+    entityB: string,
+    description: string,
+    maxRounds?: number
+  ) => {
+    const response = await slmApi.post<ConflictResolution>('/resolve-conflict', {
+      conflict_id: conflictId,
+      conflict_type: conflictType,
+      entity_a: entityA,
+      entity_b: entityB,
+      description,
+      max_rounds: maxRounds || 5,
+    });
+    return response.data;
+  },
+
+  // Quality Assessment
+  assessQuality: async (
+    name: string,
+    source: string,
+    domain: string,
+    tripleCount: number,
+    sampleClasses: string[],
+    sampleProperties: string[]
+  ) => {
+    const response = await slmApi.post<QualityAssessment>('/assess-quality', {
+      name,
+      source,
+      domain,
+      triple_count: tripleCount,
+      sample_classes: sampleClasses,
+      sample_properties: sampleProperties,
+    });
+    return response.data;
+  },
+
+  // Strategic Planning
+  generateStrategicPlan: async (metrics: Record<string, number>, gaps: string[]) => {
+    const response = await slmApi.post<StrategicPlan>('/strategic-plan', {
+      metrics,
+      gaps,
+    });
+    return response.data;
+  },
+
+  // Entity Enhancement
+  enhanceEntity: async (entityId: string, entityName: string, entityDescription: string, enhancementTypes?: string[]) => {
+    const response = await slmApi.post<{ enhancements: EntityEnhancement[] }>('/enhance-entity', {
+      entity_id: entityId,
+      entity_name: entityName,
+      entity_description: entityDescription,
+      enhancement_types: enhancementTypes || ['root_hint', 'epistemic'],
+    });
+    return response.data;
+  },
+
+  // Smart Search - AI-powered semantic search
+  smartSearch: async (query: string, entityTypes?: string[], limit?: number) => {
+    const response = await slmApi.post<SLMResponse>('/generate', {
+      prompt: `Analyze this search query and identify relevant ontology concepts:
+Query: "${query}"
+${entityTypes ? `Filter to types: ${entityTypes.join(', ')}` : ''}
+
+Respond with JSON containing:
+- interpreted_query: what the user is looking for
+- suggested_entities: list of entity names that might match
+- related_concepts: related ontological concepts
+- search_tips: suggestions for refining the search`,
+      task_type: 'general',
+      max_tokens: 512,
+      temperature: 0.3,
+    });
+    return response.data;
+  },
+
+  // Ontology Suggestions
+  suggestOntologyImprovements: async (stats: Record<string, number>) => {
+    const response = await slmApi.post<SLMResponse>('/generate', {
+      prompt: `Based on these ontology statistics, suggest improvements:
+${JSON.stringify(stats, null, 2)}
+
+Provide JSON with:
+- gaps: areas needing more coverage
+- quality_issues: potential quality problems
+- recommendations: specific actionable improvements
+- priority: high/medium/low for each recommendation`,
+      task_type: 'general',
+      max_tokens: 1024,
+      temperature: 0.4,
+    });
     return response.data;
   },
 };
