@@ -8,9 +8,9 @@ import re
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 
-from src.common.config import get_settings
-from src.common.logging_config import get_logger
-from src.common.models import (
+from common.config import get_settings
+from common.logging_config import get_logger
+from common.models import (
     SLMRequest, SLMResponse, SLMEnhancement,
     RootType, CausalityType, EpistemicBasis,
     AIAgentRole, DebateRound, DebateResult, Conflict

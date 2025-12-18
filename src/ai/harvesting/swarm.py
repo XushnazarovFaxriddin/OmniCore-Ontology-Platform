@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
-from src.common.config import get_settings
-from src.common.logging_config import get_logger
+from common.config import get_settings
+from common.logging_config import get_logger
 
 logger = get_logger("ai.harvesting")
 
@@ -77,7 +77,7 @@ class OntologyHarvestingSwarm:
     def _get_slm_service(self):
         """Lazy import SLM service"""
         if self._slm_service is None:
-            from src.ai.slm.service import SLMService
+            from ai.slm.service import SLMService
             self._slm_service = SLMService()
         return self._slm_service
 
@@ -215,8 +215,8 @@ class OntologyHarvestingSwarm:
 
         Returns import result.
         """
-        from src.rdf.parser import OntologyImporter
-        from src.common.models import OntologyImportRequest
+        from rdf.parser import OntologyImporter
+        from common.models import OntologyImportRequest
 
         importer = OntologyImporter()
 

@@ -13,9 +13,9 @@ import httpx
 from functools import lru_cache
 from abc import ABC, abstractmethod
 
-from src.common.config import Settings, get_settings, SLMProvider
-from src.common.logging_config import get_logger
-from src.common.models import SLMRequest, SLMResponse
+from common.config import Settings, get_settings, SLMProvider
+from common.logging_config import get_logger
+from common.models import SLMRequest, SLMResponse
 
 logger = get_logger("slm.client")
 

@@ -14,9 +14,9 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from src.common.config import get_settings
-from src.common.logging_config import get_logger
-from src.common.models import (
+from common.config import get_settings
+from common.logging_config import get_logger
+from common.models import (
     StrategicGoals, StrategicPlan, QuarterlyReview,
     EthicalAlert, generate_operation_id
 )
@@ -158,7 +158,7 @@ class StrategicMetaAI:
     def _get_slm_service(self):
         """Lazy import SLM service"""
         if self._slm_service is None:
-            from src.ai.slm.service import SLMService
+            from ai.slm.service import SLMService
             self._slm_service = SLMService()
         return self._slm_service
 

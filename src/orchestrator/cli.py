@@ -210,8 +210,8 @@ def cmd_services(args):
 
 async def cmd_import(args):
     """Handle import command"""
-    from src.rdf.parser import OntologyImporter
-    from src.common.models import OntologyImportRequest
+    from rdf.parser import OntologyImporter
+    from common.models import OntologyImportRequest
 
     print(f"Importing ontology from: {args.source}")
 
@@ -264,7 +264,7 @@ async def cmd_import(args):
 
 async def cmd_slm(args):
     """Handle SLM commands"""
-    from src.ai.slm.client import get_slm_client
+    from ai.slm.client import get_slm_client
 
     client = get_slm_client()
 
@@ -286,8 +286,8 @@ async def cmd_slm(args):
                 print(f"  - {model}")
 
     elif args.slm_command == "pull":
-        from src.ai.slm.client import OllamaClient
-        from src.common.config import get_settings
+        from ai.slm.client import OllamaClient
+        from common.config import get_settings
 
         settings = get_settings()
         ollama = OllamaClient(settings)
@@ -302,7 +302,7 @@ async def cmd_slm(args):
 
 async def cmd_strategic(args):
     """Handle strategic commands"""
-    from src.ai.strategic.meta_ai import StrategicMetaAI
+    from ai.strategic.meta_ai import StrategicMetaAI
 
     strategic_ai = StrategicMetaAI()
 

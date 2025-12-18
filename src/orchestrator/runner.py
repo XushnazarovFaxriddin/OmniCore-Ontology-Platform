@@ -14,8 +14,8 @@ from pathlib import Path
 from enum import Enum
 import json
 
-from src.common.config import get_settings
-from src.common.logging_config import get_logger
+from common.config import get_settings
+from common.logging_config import get_logger
 
 logger = get_logger("orchestrator")
 
@@ -75,14 +75,14 @@ class ServiceManager:
     SERVICES: Dict[str, ServiceConfig] = {
         "roots": ServiceConfig(
             name="Roots Service",
-            module="src.core.roots.api:app",
+            module="core.roots.api:app",
             port=8001,
             depends_on=[],
             health_endpoint="/health"
         ),
         "causality": ServiceConfig(
             name="Causality Service",
-            module="src.core.causality.api:app",
+            module="core.causality.api:app",
             port=8002,
             depends_on=["roots"],
             gpu_required=True,
@@ -91,28 +91,28 @@ class ServiceManager:
         ),
         "epistemic": ServiceConfig(
             name="Epistemic Service",
-            module="src.core.epistemic.api:app",
+            module="core.epistemic.api:app",
             port=8003,
             depends_on=["roots", "causality"],
             health_endpoint="/health"
         ),
         "mmo": ServiceConfig(
             name="MMO Service",
-            module="src.core.mmo.api:app",
+            module="core.mmo.api:app",
             port=8004,
             depends_on=[],
             health_endpoint="/health"
         ),
         "global": ServiceConfig(
             name="Global Ontology Service",
-            module="src.core.global_srv.api:app",
+            module="core.global_srv.api:app",
             port=8005,
             depends_on=["roots", "causality", "epistemic", "mmo"],
             health_endpoint="/health"
         ),
         "slm": ServiceConfig(
             name="SLM Service",
-            module="src.ai.slm.api:app",
+            module="ai.slm.api:app",
             port=8006,
             depends_on=[],
             gpu_required=True,
@@ -121,7 +121,7 @@ class ServiceManager:
         ),
         "gateway": ServiceConfig(
             name="API Gateway",
-            module="src.core.gateway.api:app",
+            module="core.gateway.api:app",
             port=8000,
             depends_on=["roots", "causality", "epistemic", "mmo", "global"],
             health_endpoint="/health"

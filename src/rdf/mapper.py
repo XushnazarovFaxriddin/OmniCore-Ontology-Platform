@@ -6,8 +6,8 @@ Rule-based heuristics for deterministic ontology mapping
 from typing import Tuple, List, Dict, Any, Optional
 import re
 
-from src.common.models import ParsedEntity, RootType, CausalityType
-from src.common.logging_config import get_logger
+from common.models import ParsedEntity, RootType, CausalityType
+from common.logging_config import get_logger
 
 logger = get_logger("rdf.mapper")
 
@@ -391,7 +391,7 @@ class EpistemicAnnotator:
     ]
 
     def __init__(self):
-        from src.common.models import EpistemicBasis
+        from common.models import EpistemicBasis
         self.EpistemicBasis = EpistemicBasis
 
         self._patterns = {

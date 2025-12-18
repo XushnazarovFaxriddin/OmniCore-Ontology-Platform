@@ -9,9 +9,9 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from src.common.config import get_settings, Settings
-from src.common.logging_config import get_logger, setup_logging
-from src.common.models import (
+from common.config import get_settings, Settings
+from common.logging_config import get_logger, setup_logging
+from common.models import (
     SLMRequest, SLMResponse, HealthResponse, HealthStatus,
     RootType, Conflict, ConflictType
 )
