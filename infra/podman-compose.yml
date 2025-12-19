@@ -54,7 +54,8 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-roots
     hostname: roots-service
-    user: "10000:10000"
+    # Rootless Podman: run as container root (maps to host user) to avoid bind-mount permission issues.
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 4
     mem_limit: 8g
     ports:
@@ -87,7 +88,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-causality
     hostname: causality-service
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 4
     mem_limit: 8g
     ports:
@@ -127,7 +128,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-epistemic
     hostname: epistemic-service
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 4
     mem_limit: 8g
     ports:
@@ -160,7 +161,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-mmo
     hostname: mmo-service
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 4
     mem_limit: 8g
     ports:
@@ -193,7 +194,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-global
     hostname: global-ontology-service
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 8
     mem_limit: 16g
     ports:
@@ -239,7 +240,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-slm
     hostname: slm-service
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 8
     mem_limit: 32g
     ports:
@@ -281,7 +282,7 @@ services:
     image: localhost/omnicore:v10
     container_name: omnicore-gateway
     hostname: api-gateway
-    user: "10000:10000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 4
     mem_limit: 8g
     ports:
@@ -328,7 +329,7 @@ services:
     image: node:20-alpine
     container_name: omnicore-ui
     hostname: dashboard-ui
-    user: "1000:1000"
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
     cpus: 2
     mem_limit: 4g
     ports:

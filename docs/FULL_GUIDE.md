@@ -150,7 +150,7 @@ OmniCore follows a hybrid approach:
 ```
 Port    Service              Description
 ────    ───────              ───────────
-8000    API Gateway          Unified entry point, auth, rate limiting
+18000   API Gateway          Unified entry point, auth, rate limiting
 18001   Roots Service        Root type management (EXTANT/ABSTRACT/MENTAL/FICTIVE)
 18002   Causality Service    Causal relationship management
 18003   Epistemic Service    Knowledge certainty and basis tracking
@@ -302,7 +302,7 @@ omnicore health
 ### Create Your First Root
 
 ```bash
-curl -X POST http://localhost:8000/api/roots \
+curl -X POST http://localhost:18000/api/roots \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Eiffel Tower",
@@ -437,7 +437,7 @@ POST   /assess-quality           Evaluate ontology
 POST   /strategic-plan           Generate strategic plan
 ```
 
-### 7. API Gateway (Port 8000)
+### 7. API Gateway (Port 18000)
 
 Unified entry point with authentication and rate limiting.
 
@@ -462,7 +462,7 @@ GET    /api/health/overview      All services health
 
 **Get JWT Token:**
 ```bash
-curl -X POST http://localhost:8000/api/auth/token \
+curl -X POST http://localhost:18000/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "scopes": ["read", "write"]}'
 ```
@@ -470,13 +470,13 @@ curl -X POST http://localhost:8000/api/auth/token \
 **Use Token:**
 ```bash
 curl -H "Authorization: Bearer <token>" \
-  http://localhost:8000/api/roots
+  http://localhost:18000/api/roots
 ```
 
 **Use API Key:**
 ```bash
 curl -H "X-API-Key: your-api-key" \
-  http://localhost:8000/api/roots
+  http://localhost:18000/api/roots
 ```
 
 ### Pagination
@@ -687,7 +687,7 @@ omnicore import ./ontologies/domain.ttl --format turtle
 
 **Via API:**
 ```bash
-curl -X POST http://localhost:8000/api/import \
+curl -X POST http://localhost:18000/api/import \
   -H "Content-Type: application/json" \
   -d '{
     "source_url": "http://example.org/onto.owl",
@@ -779,7 +779,7 @@ OMNICORE_ENV=development          # development|staging|production
 OMNICORE_LOG_LEVEL=INFO           # DEBUG|INFO|WARNING|ERROR
 
 # Service Ports
-API_GATEWAY_PORT=8000
+API_GATEWAY_PORT=18000
 ROOTS_SERVICE_PORT=18001
 CAUSALITY_SERVICE_PORT=18002
 EPISTEMIC_SERVICE_PORT=18003
@@ -833,7 +833,7 @@ SLM_MODEL_NAME=llama3.2:1b
 PYTHONPATH=src python -m orchestrator.cli start -f
 
 # Access
-http://localhost:8000/docs  # API documentation
+http://localhost:18000/docs  # API documentation
 http://localhost:3000       # Dashboard (if running)
 ```
 
@@ -998,7 +998,7 @@ A: When two ontologies disagree on entity classification, three AI agents (Plato
 
 **Q: Can I integrate OmniCore with my existing system?**
 
-A: Yes! All services expose REST APIs. Use the API Gateway (port 8000) for authenticated access.
+A: Yes! All services expose REST APIs. Use the API Gateway (port 18000) for authenticated access.
 
 **Q: Is there a Python SDK?**
 

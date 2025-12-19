@@ -174,8 +174,13 @@ echo -e "${GREEN}║                    Setup Complete!                         
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Services will be available at:"
-echo -e "  ${BLUE}API Gateway:${NC}  http://localhost:18000"
-echo -e "  ${BLUE}Dashboard:${NC}    http://localhost:3000"
+GATEWAY_PORT="${OMNICORE_GATEWAY_HOST_PORT:-18000}"
+DASHBOARD_PORT="${OMNICORE_DASHBOARD_HOST_PORT:-3000}"
+if [[ "$MODE" == "podman" ]]; then
+    DASHBOARD_PORT="${OMNICORE_DASHBOARD_HOST_PORT:-13000}"
+fi
+echo -e "  ${BLUE}API Gateway:${NC}  http://localhost:${GATEWAY_PORT}"
+echo -e "  ${BLUE}Dashboard:${NC}    http://localhost:${DASHBOARD_PORT}"
 echo -e "  ${BLUE}SLM Service:${NC}  http://localhost:18006"
 echo -e "  ${BLUE}Ollama:${NC}       http://localhost:11434"
 echo ""

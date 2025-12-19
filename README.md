@@ -103,7 +103,7 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 └──────────────────────────────────────────────────────────────────────┘
                                   │
 ┌──────────────────────────────────────────────────────────────────────┐
-│                      API Gateway (:8000)                             │
+│                      API Gateway (:18000)                            │
 │  • JWT/API Key Auth  • Rate Limiting (Redis)  • Request Routing     │
 └──────────────────────────────────────────────────────────────────────┘
                                   │
@@ -119,7 +119,7 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 
 | Service | Port | GPU | Description |
 |---------|------|-----|-------------|
-| API Gateway | 8000 | - | Unified entry point |
+| API Gateway | 18000 | - | Unified entry point |
 | Roots | 18001 | - | Entity classification |
 | Causality | 18002 | 0.25 A100 | Causal inference |
 | Epistemic | 18003 | - | Knowledge annotations |
@@ -164,22 +164,28 @@ cd OmniCore-Ontology-Platform
 ./scripts/setup.sh --mode podman
 
 # Start all services
-podman-compose -f infra/podman-compose.yml up -d
+bash scripts/publish-podman.sh up
+# (or raw compose)
+# podman-compose -f infra/podman-compose.yml up -d
 
 # Verify
-curl http://localhost:8000/health
+curl http://localhost:18000/health
 ```
+
+See `docs/DEPLOY_PODMAN_ALMALINUX.md` for AlmaLinux 8.9 rootless Podman + VPN access notes.
 
 ### Verify Installation
 
 ```bash
 # Check all services
-curl http://localhost:8000/health
+curl http://localhost:18000/health
 
 # Open Dashboard
 open http://localhost:3000  # macOS
 xdg-open http://localhost:3000  # Linux
 start http://localhost:3000  # Windows
+# Podman default host port:
+#   http://localhost:13000
 ```
 
 ---
@@ -307,7 +313,7 @@ python -m src.orchestrator.cli stop
 
 ```bash
 # Create a root entity
-curl -X POST http://localhost:8000/api/roots \
+curl -X POST http://localhost:18000/api/roots \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Consciousness",
@@ -317,7 +323,7 @@ curl -X POST http://localhost:8000/api/roots \
   }'
 
 # Create causality link
-curl -X POST http://localhost:8000/api/causality-links \
+curl -X POST http://localhost:18000/api/causality-links \
   -H "Content-Type: application/json" \
   -d '{
     "source_entity_id": "uuid-1",
@@ -327,7 +333,7 @@ curl -X POST http://localhost:8000/api/causality-links \
   }'
 
 # Import ontology with SLM enhancement
-curl -X POST http://localhost:8000/api/ontologies/import \
+curl -X POST http://localhost:18000/api/ontologies/import \
   -H "Content-Type: application/json" \
   -d '{
     "source_url": "http://purl.obolibrary.org/obo/go.owl",
@@ -337,7 +343,7 @@ curl -X POST http://localhost:8000/api/ontologies/import \
   }'
 
 # Get MMO metrics
-curl http://localhost:8000/api/metrics
+curl http://localhost:18000/api/metrics
 
 # Infer root type with SLM
 curl -X POST http://localhost:18006/infer-root-type \
@@ -357,15 +363,15 @@ curl -X POST http://localhost:18006/infer-root-type \
 
 ```bash
 # Get JWT token
-curl -X POST http://localhost:8000/api/auth/token \
+curl -X POST http://localhost:18000/api/auth/token \
   -d '{"username": "admin", "scopes": ["read", "write"]}'
 
 # Use token
-curl http://localhost:8000/api/roots \
+curl http://localhost:18000/api/roots \
   -H "Authorization: Bearer <token>"
 
 # Or use API key
-curl http://localhost:8000/api/roots \
+curl http://localhost:18000/api/roots \
   -H "X-API-Key: <api-key>"
 ```
 
@@ -561,7 +567,7 @@ ollama pull llama3.2:1b
 **Port in use:**
 ```bash
 # Find process
-lsof -i :8000
+lsof -i :18000
 
 # Kill process
 kill -9 <PID>
@@ -586,7 +592,7 @@ podman run --rm --device nvidia.com/gpu=0 nvidia/cuda:11.8-base nvidia-smi
 
 ```bash
 # All services
-for port in 8000 18001 18002 18003 18004 18005 18006; do
+for port in 18000 18001 18002 18003 18004 18005 18006; do
   echo "Port $port: $(curl -s http://localhost:$port/health | jq -r .status 2>/dev/null || echo 'down')"
 done
 ```

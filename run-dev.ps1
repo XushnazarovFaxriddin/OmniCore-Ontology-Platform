@@ -15,6 +15,6 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\gatew
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\frontend\omnicloud-ui; npm run dev"
 
 Write-Host "All services starting..."
-Write-Host "API Gateway: http://localhost:8000"
+Write-Host "API Gateway: http://localhost:18000"
 Write-Host "Dashboard:   http://localhost:3000"
-Write-Host "API Docs:    http://localhost:8000/docs"
+Write-Host "API Docs:    http://localhost:18000/docs"
