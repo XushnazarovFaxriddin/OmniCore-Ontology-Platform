@@ -35,6 +35,11 @@ import type {
 
 // Get API base URL from environment or default
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const AUTH_USERNAME = import.meta.env.VITE_AUTH_USERNAME || 'dashboard';
+const AUTH_SCOPES = (import.meta.env.VITE_AUTH_SCOPES || 'read,write')
+  .split(',')
+  .map((s: string) => s.trim())
+  .filter(Boolean);
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -45,9 +50,52 @@ const api: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
+// Auth-only client (no interceptors) to avoid recursion when auto-fetching tokens.
+const authClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+});
+
+let tokenPromise: Promise<string | null> | null = null;
+
+async function ensureAuthToken(): Promise<string | null> {
+  const existing = localStorage.getItem('auth_token');
+  if (existing) return existing;
+
+  if (tokenPromise) return tokenPromise;
+
+  tokenPromise = (async () => {
+    try {
+      const response = await authClient.post<{ access_token: string; token_type: string; expires_in: number }>(
+        '/auth/token',
+        { username: AUTH_USERNAME, scopes: AUTH_SCOPES }
+      );
+      const token = response.data?.access_token;
+      if (token) {
+        localStorage.setItem('auth_token', token);
+        return token;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      tokenPromise = null;
+    }
+  })();
+
+  return tokenPromise;
+}
+
 // Request interceptor for authentication
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+api.interceptors.request.use(async (config) => {
+  const url = config.url || '';
+  const isTokenRequest = url.includes('/auth/token');
+  if (isTokenRequest) return config;
+
+  const token = localStorage.getItem('auth_token') || (await ensureAuthToken());
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -57,9 +105,24 @@ api.interceptors.request.use((config) => {
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+
     if (error.response?.status === 401) {
+      const url = String(originalRequest?.url || '');
+      const isTokenRequest = url.includes('/auth/token');
+
       localStorage.removeItem('auth_token');
+
+      if (!isTokenRequest && originalRequest && !originalRequest._retry) {
+        originalRequest._retry = true;
+        const token = await ensureAuthToken();
+        if (token) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }
+      }
     }
     return Promise.reject(error);
   }
@@ -338,13 +401,34 @@ const slmApi: AxiosInstance = axios.create({
   timeout: 60000, // Longer timeout for AI operations
 });
 
-slmApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+slmApi.interceptors.request.use(async (config) => {
+  const token = localStorage.getItem('auth_token') || (await ensureAuthToken());
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+slmApi.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token');
+
+      if (originalRequest && !originalRequest._retry) {
+        originalRequest._retry = true;
+        const token = await ensureAuthToken();
+        if (token) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return slmApi(originalRequest);
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const aiApi = {
   // Health & Models
