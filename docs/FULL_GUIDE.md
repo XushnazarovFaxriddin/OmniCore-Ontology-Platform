@@ -151,12 +151,12 @@ OmniCore follows a hybrid approach:
 Port    Service              Description
 ────    ───────              ───────────
 8000    API Gateway          Unified entry point, auth, rate limiting
-8001    Roots Service        Root type management (EXTANT/ABSTRACT/MENTAL/FICTIVE)
-8002    Causality Service    Causal relationship management
-8003    Epistemic Service    Knowledge certainty and basis tracking
-8004    MMO Service          Meta-Meta-Ontology classes and metrics
-8005    Global Service       Aggregation and system health
-8006    SLM Service          Small Language Model inference
+18001   Roots Service        Root type management (EXTANT/ABSTRACT/MENTAL/FICTIVE)
+18002   Causality Service    Causal relationship management
+18003   Epistemic Service    Knowledge certainty and basis tracking
+18004   MMO Service          Meta-Meta-Ontology classes and metrics
+18005   Global Service       Aggregation and system health
+18006   SLM Service          Small Language Model inference
 3000    Dashboard            React-based web interface
 ```
 
@@ -321,7 +321,7 @@ omnicore import http://purl.obolibrary.org/obo/bfo.owl --use-slm
 
 ## Services Overview
 
-### 1. Roots Service (Port 8001)
+### 1. Roots Service (Port 18001)
 
 Manages fundamental ontological root types.
 
@@ -337,7 +337,7 @@ DELETE /roots/{id}         Delete root
 
 **Example: Create Root**
 ```bash
-curl -X POST http://localhost:8001/roots \
+curl -X POST http://localhost:18001/roots \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Happiness",
@@ -346,7 +346,7 @@ curl -X POST http://localhost:8001/roots \
   }'
 ```
 
-### 2. Causality Service (Port 8002)
+### 2. Causality Service (Port 18002)
 
 Manages causal relationships between entities.
 
@@ -362,7 +362,7 @@ DELETE /causality-links/{id}      Delete link
 
 **Example: Create Causal Link**
 ```bash
-curl -X POST http://localhost:8002/causality-links \
+curl -X POST http://localhost:18002/causality-links \
   -H "Content-Type: application/json" \
   -d '{
     "source_entity_id": "entity-1",
@@ -373,7 +373,7 @@ curl -X POST http://localhost:8002/causality-links \
   }'
 ```
 
-### 3. Epistemic Service (Port 8003)
+### 3. Epistemic Service (Port 18003)
 
 Tracks knowledge certainty and basis.
 
@@ -393,7 +393,7 @@ PUT    /annotations/{id}         Update annotation
 DELETE /annotations/{id}         Delete annotation
 ```
 
-### 4. MMO Service (Port 8004)
+### 4. MMO Service (Port 18004)
 
 Manages Meta-Meta-Ontology structure.
 
@@ -408,7 +408,7 @@ POST   /metrics/recalculate      Recalculate metrics
 GET    /schema                   Get full schema
 ```
 
-### 5. Global Service (Port 8005)
+### 5. Global Service (Port 18005)
 
 Aggregates data from all services.
 
@@ -420,7 +420,7 @@ GET    /global/summary           Comprehensive summary
 GET    /system/health            System-wide health
 ```
 
-### 6. SLM Service (Port 8006)
+### 6. SLM Service (Port 18006)
 
 AI inference for ontology processing.
 
@@ -614,7 +614,7 @@ export SLM_CONFIDENCE_THRESHOLD=0.6
 
 **Direct API Call:**
 ```bash
-curl -X POST http://localhost:8006/generate \
+curl -X POST http://localhost:18006/generate \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Classify this entity: Electron",
@@ -626,7 +626,7 @@ curl -X POST http://localhost:8006/generate \
 ### Root Type Inference
 
 ```bash
-curl -X POST http://localhost:8006/infer-root-type \
+curl -X POST http://localhost:18006/infer-root-type \
   -H "Content-Type: application/json" \
   -d '{
     "entity_name": "Sherlock Holmes",
@@ -780,12 +780,12 @@ OMNICORE_LOG_LEVEL=INFO           # DEBUG|INFO|WARNING|ERROR
 
 # Service Ports
 API_GATEWAY_PORT=8000
-ROOTS_SERVICE_PORT=8001
-CAUSALITY_SERVICE_PORT=8002
-EPISTEMIC_SERVICE_PORT=8003
-MMO_SERVICE_PORT=8004
-GLOBAL_SERVICE_PORT=8005
-SLM_SERVICE_PORT=8006
+ROOTS_SERVICE_PORT=18001
+CAUSALITY_SERVICE_PORT=18002
+EPISTEMIC_SERVICE_PORT=18003
+MMO_SERVICE_PORT=18004
+GLOBAL_SERVICE_PORT=18005
+SLM_SERVICE_PORT=18006
 
 # Database
 DATABASE_PATH=./data/omnicore.db
@@ -959,7 +959,7 @@ docker-compose logs -f gateway
 omnicore health
 
 # Specific service
-curl http://localhost:8001/health
+curl http://localhost:18001/health
 ```
 
 ---

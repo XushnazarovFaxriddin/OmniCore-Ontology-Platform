@@ -39,33 +39,33 @@ class Settings(BaseSettings):
 
     # Service Ports (v10 Architecture)
     api_gateway_port: int = 8000
-    roots_service_port: int = 8001
-    causality_service_port: int = 8002
-    epistemic_service_port: int = 8003
-    mmo_service_port: int = 8004
-    global_service_port: int = 8005
-    slm_service_port: int = 8006
-    ai_orchestrator_port: int = 8007
+    roots_service_port: int = 18001
+    causality_service_port: int = 18002
+    epistemic_service_port: int = 18003
+    mmo_service_port: int = 18004
+    global_service_port: int = 18005
+    slm_service_port: int = 18006
+    ai_orchestrator_port: int = 18007
     dashboard_port: int = 3000
 
     # Service URLs
     roots_service_url: str = Field(
-        default="http://localhost:8001", alias="ROOTS_SERVICE_URL"
+        default="http://localhost:18001", alias="ROOTS_SERVICE_URL"
     )
     causality_service_url: str = Field(
-        default="http://localhost:8002", alias="CAUSALITY_SERVICE_URL"
+        default="http://localhost:18002", alias="CAUSALITY_SERVICE_URL"
     )
     epistemic_service_url: str = Field(
-        default="http://localhost:8003", alias="EPISTEMIC_SERVICE_URL"
+        default="http://localhost:18003", alias="EPISTEMIC_SERVICE_URL"
     )
     mmo_service_url: str = Field(
-        default="http://localhost:8004", alias="MMO_SERVICE_URL"
+        default="http://localhost:18004", alias="MMO_SERVICE_URL"
     )
     global_service_url: str = Field(
-        default="http://localhost:8005", alias="GLOBAL_SERVICE_URL"
+        default="http://localhost:18005", alias="GLOBAL_SERVICE_URL"
     )
     slm_service_url: str = Field(
-        default="http://localhost:8006", alias="SLM_SERVICE_URL"
+        default="http://localhost:18006", alias="SLM_SERVICE_URL"
     )
 
     # Database Configuration

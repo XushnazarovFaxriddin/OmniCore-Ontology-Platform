@@ -78,14 +78,14 @@ class ServiceManager:
         "roots": ServiceConfig(
             name="Roots Service",
             module="core.roots.api:app",
-            port=8001,
+            port=18001,
             depends_on=[],
             health_endpoint="/health"
         ),
         "causality": ServiceConfig(
             name="Causality Service",
             module="core.causality.api:app",
-            port=8002,
+            port=18002,
             depends_on=["roots"],
             gpu_required=True,
             gpu_fraction=0.25,
@@ -94,28 +94,28 @@ class ServiceManager:
         "epistemic": ServiceConfig(
             name="Epistemic Service",
             module="core.epistemic.api:app",
-            port=8003,
+            port=18003,
             depends_on=["roots", "causality"],
             health_endpoint="/health"
         ),
         "mmo": ServiceConfig(
             name="MMO Service",
             module="core.mmo.api:app",
-            port=8004,
+            port=18004,
             depends_on=[],
             health_endpoint="/health"
         ),
         "global": ServiceConfig(
             name="Global Ontology Service",
             module="core.global_srv.api:app",
-            port=8005,
+            port=18005,
             depends_on=["roots", "causality", "epistemic", "mmo"],
             health_endpoint="/health"
         ),
         "slm": ServiceConfig(
             name="SLM Service",
             module="ai.slm.api:app",
-            port=8006,
+            port=18006,
             depends_on=[],
             gpu_required=True,
             gpu_fraction=0.25,

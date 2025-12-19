@@ -18,10 +18,10 @@ from fastapi.testclient import TestClient
 def client(temp_db_path):
     """Create test client for Global Service."""
     # Set service URLs to localhost for testing
-    os.environ['ROOTS_SERVICE_URL'] = 'http://localhost:8001'
-    os.environ['CAUSALITY_SERVICE_URL'] = 'http://localhost:8002'
-    os.environ['EPISTEMIC_SERVICE_URL'] = 'http://localhost:8003'
-    os.environ['MMO_SERVICE_URL'] = 'http://localhost:8004'
+    os.environ['ROOTS_SERVICE_URL'] = 'http://localhost:18001'
+    os.environ['CAUSALITY_SERVICE_URL'] = 'http://localhost:18002'
+    os.environ['EPISTEMIC_SERVICE_URL'] = 'http://localhost:18003'
+    os.environ['MMO_SERVICE_URL'] = 'http://localhost:18004'
 
     from core.global_srv.api import app
     return TestClient(app)
@@ -50,11 +50,14 @@ class TestGlobalModels:
             total_epistemic_annotations=15,
             total_mmo_classes=5,
             total_mmo_slots=12,
+            total_ontologies_imported=3,
             roots_by_type={"EXTANT": 5, "ABSTRACT": 3, "MENTAL": 1, "FICTIVE": 1},
             causality_by_type={"EFFICIENT": 10, "FINAL": 5, "MATERIAL": 3, "FORMAL": 1, "EMERGENT": 1},
             epistemic_by_basis={"axiomatic": 3, "empirical": 7, "consensus": 3, "speculative": 2},
             avg_causality_confidence=0.85,
-            avg_epistemic_certainty=0.75
+            avg_epistemic_certainty=0.75,
+            mo_version="mo:v1.0.0-test",
+            mmo_score=0.9,
         )
 
         assert stats.total_roots == 10

@@ -18,11 +18,11 @@ from fastapi.testclient import TestClient
 def client(temp_db_path):
     """Create test client for API Gateway."""
     # Set service URLs to localhost for testing
-    os.environ['ROOTS_SERVICE_URL'] = 'http://localhost:8001'
-    os.environ['CAUSALITY_SERVICE_URL'] = 'http://localhost:8002'
-    os.environ['EPISTEMIC_SERVICE_URL'] = 'http://localhost:8003'
-    os.environ['MMO_SERVICE_URL'] = 'http://localhost:8004'
-    os.environ['GLOBAL_SERVICE_URL'] = 'http://localhost:8005'
+    os.environ['ROOTS_SERVICE_URL'] = 'http://localhost:18001'
+    os.environ['CAUSALITY_SERVICE_URL'] = 'http://localhost:18002'
+    os.environ['EPISTEMIC_SERVICE_URL'] = 'http://localhost:18003'
+    os.environ['MMO_SERVICE_URL'] = 'http://localhost:18004'
+    os.environ['GLOBAL_SERVICE_URL'] = 'http://localhost:18005'
 
     from core.gateway.api import app
     return TestClient(app)

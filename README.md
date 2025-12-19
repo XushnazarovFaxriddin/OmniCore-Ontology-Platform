@@ -84,7 +84,7 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 │                        AI Services Layer                             │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │
 │  │ SLM Service │ │  Harvesting │ │  Conflict   │ │  Strategic  │    │
-│  │   :8006     │ │    Swarm    │ │ Resolution  │ │   Meta-AI   │    │
+│  │   :18006    │ │    Swarm    │ │ Resolution  │ │   Meta-AI   │    │
 │  │ Llama/Gemma │ │  (Async)    │ │  (Debate)   │ │ (Quarterly) │    │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘    │
 └──────────────────────────────────────────────────────────────────────┘
@@ -93,12 +93,12 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 │                     Core Ontological Engine                          │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                │
 │  │  Roots   │ │Causality │ │Epistemic │ │   MMO    │                │
-│  │  :8001   │ │  :8002   │ │  :8003   │ │  :8004   │                │
+│  │ :18001  │ │ :18002  │ │ :18003  │ │ :18004  │                │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘                │
 └──────────────────────────────────────────────────────────────────────┘
                                   │
 ┌──────────────────────────────────────────────────────────────────────┐
-│              Global Ontology Service (:8005)                         │
+│              Global Ontology Service (:18005)                        │
 │  • MO Merge Engine  • RDFLib Parser  • Provenance  • Snapshots      │
 └──────────────────────────────────────────────────────────────────────┘
                                   │
@@ -120,12 +120,12 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 | Service | Port | GPU | Description |
 |---------|------|-----|-------------|
 | API Gateway | 8000 | - | Unified entry point |
-| Roots | 8001 | - | Entity classification |
-| Causality | 8002 | 0.25 A100 | Causal inference |
-| Epistemic | 8003 | - | Knowledge annotations |
-| MMO | 8004 | - | Quality metrics |
-| Global | 8005 | - | MO core engine |
-| SLM | 8006 | 0.25 A100 | Language model inference |
+| Roots | 18001 | - | Entity classification |
+| Causality | 18002 | 0.25 A100 | Causal inference |
+| Epistemic | 18003 | - | Knowledge annotations |
+| MMO | 18004 | - | Quality metrics |
+| Global | 18005 | - | MO core engine |
+| SLM | 18006 | 0.25 A100 | Language model inference |
 | Dashboard | 3000 | - | Web UI |
 | Ollama | 11434 | 1 GPU | Local LLM server |
 
@@ -340,7 +340,7 @@ curl -X POST http://localhost:8000/api/ontologies/import \
 curl http://localhost:8000/api/metrics
 
 # Infer root type with SLM
-curl -X POST http://localhost:8006/infer-root-type \
+curl -X POST http://localhost:18006/infer-root-type \
   -H "Content-Type: application/json" \
   -d '{
     "entity_name": "Sherlock Holmes",
@@ -586,7 +586,7 @@ podman run --rm --device nvidia.com/gpu=0 nvidia/cuda:11.8-base nvidia-smi
 
 ```bash
 # All services
-for port in 8000 8001 8002 8003 8004 8005 8006; do
+for port in 8000 18001 18002 18003 18004 18005 18006; do
   echo "Port $port: $(curl -s http://localhost:$port/health | jq -r .status 2>/dev/null || echo 'down')"
 done
 ```

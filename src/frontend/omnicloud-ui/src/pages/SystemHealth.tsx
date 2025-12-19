@@ -137,11 +137,11 @@ function SystemHealth() {
               Monitored Services
             </h4>
             <ul style={{ paddingLeft: '20px', color: 'var(--text-primary)' }}>
-              <li>Roots Service (Port 8001)</li>
-              <li>Causality Service (Port 8002)</li>
-              <li>Epistemic Service (Port 8003)</li>
-              <li>MMO Service (Port 8004)</li>
-              <li>Global Service (Port 8005)</li>
+              <li>Roots Service (Port 18001)</li>
+              <li>Causality Service (Port 18002)</li>
+              <li>Epistemic Service (Port 18003)</li>
+              <li>MMO Service (Port 18004)</li>
+              <li>Global Service (Port 18005)</li>
             </ul>
           </div>
           <div>
