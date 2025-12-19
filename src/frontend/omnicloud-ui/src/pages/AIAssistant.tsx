@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { aiApi } from '../api/client';
-import type { RootType, CausalityType, EpistemicBasis, ConflictType } from '../types';
+import type { RootType, EpistemicBasis, ConflictType } from '../types';
 
 type TabType = 'root-inference' | 'causality' | 'epistemic' | 'conflict' | 'enhancement' | 'quality';
 
@@ -88,7 +88,7 @@ function AIAssistant() {
       const result = await aiApi.inferRootType(entityName, entityDescription);
       setInferenceResult(result);
     } catch (err) {
-      setError('Root turini aniqlashda xatolik yuz berdi');
+      setError('Failed to infer root type. Ensure Ollama is running.');
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +98,7 @@ function AIAssistant() {
     const entities = causalityEntities.split('\n').filter(e => e.trim());
     const descriptions = causalityDescriptions.split('\n').filter(d => d.trim());
     if (entities.length < 2) {
-      setError('Kamida 2 ta entity kerak');
+      setError('At least 2 entities required');
       return;
     }
     setIsLoading(true);
@@ -107,7 +107,7 @@ function AIAssistant() {
       const result = await aiApi.extractCausality(entities, descriptions);
       setCausalityResults(result.relationships);
     } catch (err) {
-      setError('Kauzal aloqalarni aniqlashda xatolik');
+      setError('Failed to extract causality relationships');
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +121,7 @@ function AIAssistant() {
       const result = await aiApi.annotateEpistemic(epistemicEntity, epistemicClaim, epistemicSource);
       setEpistemicResult(result);
     } catch (err) {
-      setError('Epistemik annotatsiyada xatolik');
+      setError('Failed to generate epistemic annotation');
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +145,7 @@ function AIAssistant() {
         rounds: result.rounds.length,
       });
     } catch (err) {
-      setError('Konfliktni hal qilishda xatolik');
+      setError('Failed to resolve conflict');
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +163,7 @@ function AIAssistant() {
       );
       setEnhancementResults(result.enhancements);
     } catch (err) {
-      setError('Entity-ni boyitishda xatolik');
+      setError('Failed to enhance entity');
     } finally {
       setIsLoading(false);
     }
@@ -184,19 +184,19 @@ function AIAssistant() {
       );
       setQualityResult(result);
     } catch (err) {
-      setError('Sifatni baholashda xatolik');
+      setError('Failed to assess quality');
     } finally {
       setIsLoading(false);
     }
   };
 
   const tabs = [
-    { id: 'root-inference' as TabType, label: 'Root Turi', icon: '🌳' },
-    { id: 'causality' as TabType, label: 'Kauzallik', icon: '🔗' },
-    { id: 'epistemic' as TabType, label: 'Epistemik', icon: '📚' },
-    { id: 'conflict' as TabType, label: 'Konflikt', icon: '⚖️' },
-    { id: 'enhancement' as TabType, label: 'Boyitish', icon: '✨' },
-    { id: 'quality' as TabType, label: 'Sifat', icon: '📊' },
+    { id: 'root-inference' as TabType, label: 'Root Type', icon: '🌳', desc: 'Classify entities' },
+    { id: 'causality' as TabType, label: 'Causality', icon: '🔗', desc: 'Extract relationships' },
+    { id: 'epistemic' as TabType, label: 'Epistemic', icon: '📚', desc: 'Annotate knowledge' },
+    { id: 'conflict' as TabType, label: 'Conflict', icon: '⚖️', desc: 'Resolve disputes' },
+    { id: 'enhancement' as TabType, label: 'Enhance', icon: '✨', desc: 'Enrich entities' },
+    { id: 'quality' as TabType, label: 'Quality', icon: '📊', desc: 'Assess ontologies' },
   ];
 
   const rootTypeColors: Record<string, string> = {
@@ -206,11 +206,18 @@ function AIAssistant() {
     FICTIVE: '#f97316',
   };
 
+  const rootTypeDescriptions: Record<string, string> = {
+    EXTANT: 'Physical, observable entities that exist in space-time',
+    ABSTRACT: 'Non-physical concepts, ideas, and universals',
+    MENTAL: 'Mind-dependent entities like beliefs and emotions',
+    FICTIVE: 'Fictional or imaginary entities',
+  };
+
   return (
     <div className="ai-assistant">
       <header className="assistant-header">
         <h1>AI Assistant</h1>
-        <p>Ontologiya operatsiyalari uchun AI yordamchisi</p>
+        <p>Ontology operations powered by Ollama SLM</p>
       </header>
 
       <div className="tabs">
@@ -219,15 +226,17 @@ function AIAssistant() {
             key={tab.id}
             className={`tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
+            title={tab.desc}
           >
             <span className="tab-icon">{tab.icon}</span>
-            <span>{tab.label}</span>
+            <span className="tab-label">{tab.label}</span>
           </button>
         ))}
       </div>
 
       {error && (
         <div className="error-banner">
+          <span className="error-icon">⚠️</span>
           {error}
           <button onClick={() => setError(null)}>×</button>
         </div>
@@ -237,25 +246,35 @@ function AIAssistant() {
         {/* Root Type Inference */}
         {activeTab === 'root-inference' && (
           <div className="panel">
-            <h2>Root Turini Aniqlash</h2>
-            <p>Entity nomini kiriting va AI root turini (EXTANT, ABSTRACT, MENTAL, FICTIVE) aniqlaydi</p>
+            <h2>Root Type Inference</h2>
+            <p>Classify an entity into one of four fundamental ontological categories using AI analysis.</p>
+
+            <div className="type-legend">
+              {Object.entries(rootTypeColors).map(([type, color]) => (
+                <div key={type} className="legend-item">
+                  <span className="legend-color" style={{ background: color }} />
+                  <span className="legend-label">{type}</span>
+                  <span className="legend-desc">{rootTypeDescriptions[type]}</span>
+                </div>
+              ))}
+            </div>
 
             <div className="form-group">
-              <label>Entity nomi</label>
+              <label>Entity Name *</label>
               <input
                 type="text"
                 value={entityName}
                 onChange={(e) => setEntityName(e.target.value)}
-                placeholder="masalan: Electron, Democracy, Happiness, Unicorn"
+                placeholder="e.g., Electron, Democracy, Happiness, Unicorn"
               />
             </div>
 
             <div className="form-group">
-              <label>Tavsif (ixtiyoriy)</label>
+              <label>Description (optional)</label>
               <textarea
                 value={entityDescription}
                 onChange={(e) => setEntityDescription(e.target.value)}
-                placeholder="Entity haqida qo'shimcha ma'lumot..."
+                placeholder="Additional context about the entity..."
                 rows={3}
               />
             </div>
@@ -265,7 +284,7 @@ function AIAssistant() {
               onClick={handleRootInference}
               disabled={isLoading || !entityName.trim()}
             >
-              {isLoading ? 'Aniqlanmoqda...' : 'Aniqlash'}
+              {isLoading ? 'Analyzing...' : 'Infer Root Type'}
             </button>
 
             {inferenceResult && (
@@ -284,9 +303,12 @@ function AIAssistant() {
                     className="confidence-fill"
                     style={{ width: `${inferenceResult.confidence * 100}%` }}
                   />
-                  <span>{(inferenceResult.confidence * 100).toFixed(0)}% ishonch</span>
+                  <span>{(inferenceResult.confidence * 100).toFixed(0)}% confidence</span>
                 </div>
-                <p className="reasoning">{inferenceResult.reasoning}</p>
+                <div className="reasoning-box">
+                  <h4>AI Reasoning</h4>
+                  <p>{inferenceResult.reasoning}</p>
+                </div>
               </div>
             )}
           </div>
@@ -295,25 +317,25 @@ function AIAssistant() {
         {/* Causality Extraction */}
         {activeTab === 'causality' && (
           <div className="panel">
-            <h2>Kauzal Aloqalarni Aniqlash</h2>
-            <p>Entity'lar ro'yxatini kiriting va AI ular orasidagi kauzal aloqalarni topadi</p>
+            <h2>Causality Extraction</h2>
+            <p>Discover causal relationships between entities using AI analysis (Efficient, Final, Material, Formal, Emergent).</p>
 
             <div className="form-group">
-              <label>Entity'lar (har bir qatorda bittadan)</label>
+              <label>Entities (one per line) *</label>
               <textarea
                 value={causalityEntities}
                 onChange={(e) => setCausalityEntities(e.target.value)}
-                placeholder="Climate Change&#10;Sea Level Rise&#10;Coastal Flooding"
+                placeholder="Climate Change&#10;Sea Level Rise&#10;Coastal Flooding&#10;Economic Damage"
                 rows={4}
               />
             </div>
 
             <div className="form-group">
-              <label>Tavsiflar (har bir entity uchun)</label>
+              <label>Descriptions (one per entity)</label>
               <textarea
                 value={causalityDescriptions}
                 onChange={(e) => setCausalityDescriptions(e.target.value)}
-                placeholder="Global temperature increase&#10;Ocean water expansion&#10;Coastal area inundation"
+                placeholder="Global temperature increase from greenhouse gases&#10;Ocean water expansion and ice melt&#10;Coastal area inundation&#10;Property and infrastructure losses"
                 rows={4}
               />
             </div>
@@ -323,12 +345,12 @@ function AIAssistant() {
               onClick={handleCausalityExtraction}
               disabled={isLoading}
             >
-              {isLoading ? 'Aniqlanmoqda...' : 'Aloqalarni Topish'}
+              {isLoading ? 'Extracting...' : 'Extract Relationships'}
             </button>
 
             {causalityResults.length > 0 && (
               <div className="results-list">
-                <h3>Topilgan aloqalar:</h3>
+                <h3>Discovered Relationships ({causalityResults.length})</h3>
                 {causalityResults.map((rel, idx) => (
                   <div key={idx} className="causality-card">
                     <div className="causality-flow">
@@ -356,36 +378,36 @@ function AIAssistant() {
         {/* Epistemic Annotation */}
         {activeTab === 'epistemic' && (
           <div className="panel">
-            <h2>Epistemik Annotatsiya</h2>
-            <p>Da'vo yoki bayonot uchun epistemik (bilim asosi) annotatsiya yarating</p>
+            <h2>Epistemic Annotation</h2>
+            <p>Generate knowledge certainty annotations for claims (Axiomatic, Empirical, Consensus, Speculative).</p>
 
             <div className="form-group">
-              <label>Entity nomi</label>
+              <label>Entity Name *</label>
               <input
                 type="text"
                 value={epistemicEntity}
                 onChange={(e) => setEpistemicEntity(e.target.value)}
-                placeholder="masalan: Quantum Entanglement"
+                placeholder="e.g., Quantum Entanglement"
               />
             </div>
 
             <div className="form-group">
-              <label>Da'vo/Bayonot</label>
+              <label>Claim/Statement *</label>
               <textarea
                 value={epistemicClaim}
                 onChange={(e) => setEpistemicClaim(e.target.value)}
-                placeholder="masalan: Entangled particles maintain correlation regardless of distance"
+                placeholder="e.g., Entangled particles maintain correlation regardless of distance"
                 rows={3}
               />
             </div>
 
             <div className="form-group">
-              <label>Manba (ixtiyoriy)</label>
+              <label>Source (optional)</label>
               <input
                 type="text"
                 value={epistemicSource}
                 onChange={(e) => setEpistemicSource(e.target.value)}
-                placeholder="masalan: Physical Review Letters, 2023"
+                placeholder="e.g., Physical Review Letters, 2023"
               />
             </div>
 
@@ -394,24 +416,27 @@ function AIAssistant() {
               onClick={handleEpistemicAnnotation}
               disabled={isLoading || !epistemicEntity.trim() || !epistemicClaim.trim()}
             >
-              {isLoading ? 'Aniqlanmoqda...' : 'Annotatsiya Yaratish'}
+              {isLoading ? 'Analyzing...' : 'Generate Annotation'}
             </button>
 
             {epistemicResult && (
               <div className="result-card">
                 <div className="epistemic-metrics">
                   <div className="metric">
-                    <span className="label">Aniqlik</span>
-                    <span className="value">{(epistemicResult.certainty * 100).toFixed(0)}%</span>
+                    <span className="metric-value">{(epistemicResult.certainty * 100).toFixed(0)}%</span>
+                    <span className="metric-label">Certainty</span>
                   </div>
                   <div className="metric">
-                    <span className="label">Asos</span>
                     <span className={`basis-badge ${epistemicResult.basis}`}>
                       {epistemicResult.basis}
                     </span>
+                    <span className="metric-label">Epistemic Basis</span>
                   </div>
                 </div>
-                <p className="reasoning">{epistemicResult.reasoning}</p>
+                <div className="reasoning-box">
+                  <h4>Analysis</h4>
+                  <p>{epistemicResult.reasoning}</p>
+                </div>
               </div>
             )}
           </div>
@@ -420,49 +445,49 @@ function AIAssistant() {
         {/* Conflict Resolution */}
         {activeTab === 'conflict' && (
           <div className="panel">
-            <h2>Konfliktni Hal Qilish</h2>
-            <p>AI agentlari munozarasi orqali ontologik konfliktlarni hal qiling</p>
+            <h2>Conflict Resolution</h2>
+            <p>Resolve ontological conflicts through multi-agent AI debate (Platonist, Nominalist, Pragmatist perspectives).</p>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Entity A</label>
+                <label>Entity A *</label>
                 <input
                   type="text"
                   value={conflictEntityA}
                   onChange={(e) => setConflictEntityA(e.target.value)}
-                  placeholder="Birinchi entity"
+                  placeholder="First entity"
                 />
               </div>
               <div className="form-group">
-                <label>Entity B</label>
+                <label>Entity B *</label>
                 <input
                   type="text"
                   value={conflictEntityB}
                   onChange={(e) => setConflictEntityB(e.target.value)}
-                  placeholder="Ikkinchi entity"
+                  placeholder="Second entity"
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Konflikt turi</label>
+              <label>Conflict Type</label>
               <select
                 value={conflictType}
                 onChange={(e) => setConflictType(e.target.value as ConflictType)}
               >
-                <option value="classification">Klassifikatsiya</option>
-                <option value="relationship">Munosabat</option>
-                <option value="property">Xususiyat</option>
-                <option value="definition">Ta'rif</option>
+                <option value="classification">Classification - Disagreement on entity type</option>
+                <option value="relationship">Relationship - Conflicting connections</option>
+                <option value="property">Property - Attribute conflicts</option>
+                <option value="definition">Definition - Semantic disagreements</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>Konflikt tavsifi</label>
+              <label>Conflict Description</label>
               <textarea
                 value={conflictDescription}
                 onChange={(e) => setConflictDescription(e.target.value)}
-                placeholder="Konfliktni batafsil tasvirlab bering..."
+                placeholder="Describe the nature of the conflict in detail..."
                 rows={3}
               />
             </div>
@@ -472,19 +497,19 @@ function AIAssistant() {
               onClick={handleConflictResolution}
               disabled={isLoading || !conflictEntityA.trim() || !conflictEntityB.trim()}
             >
-              {isLoading ? 'Munozara davom etmoqda...' : 'Hal Qilish'}
+              {isLoading ? 'Debate in progress...' : 'Resolve Conflict'}
             </button>
 
             {conflictResult && (
               <div className="result-card">
                 <div className="conflict-status">
                   <span className={`status-badge ${conflictResult.consensus_reached ? 'success' : 'warning'}`}>
-                    {conflictResult.consensus_reached ? 'Konsensusga erishildi' : 'Konsensus yo\'q'}
+                    {conflictResult.consensus_reached ? '✓ Consensus Reached' : '⚠ No Consensus'}
                   </span>
-                  <span className="rounds">{conflictResult.rounds} raund</span>
+                  <span className="rounds">{conflictResult.rounds} debate rounds</span>
                 </div>
-                <div className="resolution">
-                  <h4>Yakuniy qaror:</h4>
+                <div className="resolution-box">
+                  <h4>Final Resolution</h4>
                   <p>{conflictResult.final_resolution}</p>
                 </div>
               </div>
@@ -495,35 +520,35 @@ function AIAssistant() {
         {/* Entity Enhancement */}
         {activeTab === 'enhancement' && (
           <div className="panel">
-            <h2>Entity Boyitish</h2>
-            <p>Mavjud entity'ni AI yordamida qo'shimcha ma'lumotlar bilan boyiting</p>
+            <h2>Entity Enhancement</h2>
+            <p>Enrich existing entities with AI-derived insights and metadata.</p>
 
             <div className="form-group">
-              <label>Entity ID (ixtiyoriy)</label>
+              <label>Entity ID (optional)</label>
               <input
                 type="text"
                 value={enhanceEntityId}
                 onChange={(e) => setEnhanceEntityId(e.target.value)}
-                placeholder="entity-123"
+                placeholder="e.g., entity-12345"
               />
             </div>
 
             <div className="form-group">
-              <label>Entity nomi</label>
+              <label>Entity Name *</label>
               <input
                 type="text"
                 value={enhanceEntityName}
                 onChange={(e) => setEnhanceEntityName(e.target.value)}
-                placeholder="masalan: Machine Learning"
+                placeholder="e.g., Machine Learning"
               />
             </div>
 
             <div className="form-group">
-              <label>Tavsif</label>
+              <label>Current Description</label>
               <textarea
                 value={enhanceDescription}
                 onChange={(e) => setEnhanceDescription(e.target.value)}
-                placeholder="Entity haqida mavjud ma'lumot..."
+                placeholder="Existing information about the entity..."
                 rows={3}
               />
             </div>
@@ -533,17 +558,17 @@ function AIAssistant() {
               onClick={handleEnhancement}
               disabled={isLoading || !enhanceEntityName.trim()}
             >
-              {isLoading ? 'Boyitilmoqda...' : 'Boyitish'}
+              {isLoading ? 'Enhancing...' : 'Enhance Entity'}
             </button>
 
             {enhancementResults.length > 0 && (
               <div className="results-list">
-                <h3>Boyitishlar:</h3>
+                <h3>Enhancements ({enhancementResults.length})</h3>
                 {enhancementResults.map((enh, idx) => (
                   <div key={idx} className="enhancement-card">
                     <div className="enhancement-header">
                       <span className="type-badge">{enh.enhancement_type}</span>
-                      <span className="confidence">{(enh.confidence * 100).toFixed(0)}%</span>
+                      <span className="confidence">{(enh.confidence * 100).toFixed(0)}% confidence</span>
                     </div>
                     <div className="enhanced-value">{enh.enhanced_value}</div>
                     <p className="rationale">{enh.rationale}</p>
@@ -557,42 +582,42 @@ function AIAssistant() {
         {/* Quality Assessment */}
         {activeTab === 'quality' && (
           <div className="panel">
-            <h2>Ontologiya Sifatini Baholash</h2>
-            <p>Ontologiya sifatini AI yordamida baholang va tavsiyalar oling</p>
+            <h2>Ontology Quality Assessment</h2>
+            <p>Evaluate ontology quality using AI analysis and get integration recommendations.</p>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Ontologiya nomi</label>
+                <label>Ontology Name *</label>
                 <input
                   type="text"
                   value={qualityName}
                   onChange={(e) => setQualityName(e.target.value)}
-                  placeholder="masalan: FOAF Ontology"
+                  placeholder="e.g., FOAF Ontology"
                 />
               </div>
               <div className="form-group">
-                <label>Manba</label>
+                <label>Source</label>
                 <input
                   type="text"
                   value={qualitySource}
                   onChange={(e) => setQualitySource(e.target.value)}
-                  placeholder="masalan: W3C"
+                  placeholder="e.g., W3C"
                 />
               </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Domen</label>
+                <label>Domain</label>
                 <input
                   type="text"
                   value={qualityDomain}
                   onChange={(e) => setQualityDomain(e.target.value)}
-                  placeholder="masalan: Social Networks"
+                  placeholder="e.g., Social Networks"
                 />
               </div>
               <div className="form-group">
-                <label>Triple soni</label>
+                <label>Triple Count</label>
                 <input
                   type="number"
                   value={qualityTripleCount}
@@ -603,7 +628,7 @@ function AIAssistant() {
             </div>
 
             <div className="form-group">
-              <label>Namuna klasslar (vergul bilan)</label>
+              <label>Sample Classes (comma-separated)</label>
               <input
                 type="text"
                 value={qualityClasses}
@@ -613,7 +638,7 @@ function AIAssistant() {
             </div>
 
             <div className="form-group">
-              <label>Namuna xususiyatlar (vergul bilan)</label>
+              <label>Sample Properties (comma-separated)</label>
               <input
                 type="text"
                 value={qualityProperties}
@@ -627,7 +652,7 @@ function AIAssistant() {
               onClick={handleQualityAssessment}
               disabled={isLoading || !qualityName.trim()}
             >
-              {isLoading ? 'Baholanmoqda...' : 'Baholash'}
+              {isLoading ? 'Assessing...' : 'Assess Quality'}
             </button>
 
             {qualityResult && (
@@ -635,17 +660,17 @@ function AIAssistant() {
                 <div className="quality-score">
                   <div className="score-circle">
                     <span className="score">{(qualityResult.overall_score * 100).toFixed(0)}</span>
-                    <span className="label">ball</span>
+                    <span className="label">/100</span>
                   </div>
                   <span className={`recommendation-badge ${qualityResult.recommendation}`}>
-                    {qualityResult.recommendation === 'integrate' ? 'Integratsiya qiling' :
-                     qualityResult.recommendation === 'review' ? 'Ko\'rib chiqing' : 'Rad eting'}
+                    {qualityResult.recommendation === 'integrate' ? '✓ Integrate' :
+                     qualityResult.recommendation === 'review' ? '⚠ Review Required' : '✗ Reject'}
                   </span>
                 </div>
 
                 {qualityResult.issues.length > 0 && (
-                  <div className="issues">
-                    <h4>Muammolar:</h4>
+                  <div className="issues-box">
+                    <h4>Issues Found</h4>
                     <ul>
                       {qualityResult.issues.map((issue, idx) => (
                         <li key={idx}>{issue}</li>
@@ -655,8 +680,8 @@ function AIAssistant() {
                 )}
 
                 {qualityResult.suggestions.length > 0 && (
-                  <div className="suggestions">
-                    <h4>Tavsiyalar:</h4>
+                  <div className="suggestions-box">
+                    <h4>Recommendations</h4>
                     <ul>
                       {qualityResult.suggestions.map((sug, idx) => (
                         <li key={idx}>{sug}</li>
@@ -682,8 +707,8 @@ function AIAssistant() {
         }
 
         .assistant-header h1 {
-          margin: 0 0 0.5rem 0;
-          color: var(--primary-color, #2563eb);
+          margin: 0 0 0.25rem 0;
+          color: var(--primary-color, #6366f1);
         }
 
         .assistant-header p {
@@ -696,49 +721,58 @@ function AIAssistant() {
           flex-wrap: wrap;
           gap: 0.5rem;
           margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
           border-bottom: 1px solid var(--border-color, #e0e0e0);
-          padding-bottom: 0.5rem;
         }
 
         .tab {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          background: transparent;
-          border: none;
+          padding: 0.75rem 1.25rem;
+          background: white;
+          border: 1px solid var(--border-color, #e0e0e0);
           cursor: pointer;
           border-radius: 8px;
           transition: all 0.2s;
-          color: var(--text-secondary, #666);
         }
 
         .tab:hover {
-          background: var(--bg-secondary, #f5f5f5);
+          border-color: var(--primary-color, #6366f1);
         }
 
         .tab.active {
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
+          border-color: var(--primary-color, #6366f1);
         }
 
         .tab-icon {
-          font-size: 1.2rem;
+          font-size: 1.1rem;
+        }
+
+        .tab-label {
+          font-weight: 500;
         }
 
         .error-banner {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 0.75rem;
           padding: 0.75rem 1rem;
           background: #fef2f2;
           border: 1px solid #fecaca;
           border-radius: 8px;
           color: #dc2626;
-          margin-bottom: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .error-icon {
+          font-size: 1.25rem;
         }
 
         .error-banner button {
+          margin-left: auto;
           background: none;
           border: none;
           font-size: 1.25rem;
@@ -756,10 +790,46 @@ function AIAssistant() {
         .panel h2 {
           margin: 0 0 0.5rem 0;
           font-size: 1.25rem;
+          color: var(--text-primary, #1e293b);
         }
 
         .panel > p {
           margin: 0 0 1.5rem 0;
+          color: var(--text-secondary, #666);
+        }
+
+        .type-legend {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+          padding: 1rem;
+          background: var(--bg-secondary, #f8fafc);
+          border-radius: 8px;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+
+        .legend-color {
+          width: 12px;
+          height: 12px;
+          border-radius: 3px;
+          margin-top: 4px;
+          flex-shrink: 0;
+        }
+
+        .legend-label {
+          font-weight: 600;
+          font-size: 0.85rem;
+          min-width: 70px;
+        }
+
+        .legend-desc {
+          font-size: 0.8rem;
           color: var(--text-secondary, #666);
         }
 
@@ -772,6 +842,7 @@ function AIAssistant() {
           margin-bottom: 0.5rem;
           font-weight: 500;
           color: var(--text-primary, #333);
+          font-size: 0.9rem;
         }
 
         .form-group input,
@@ -781,7 +852,7 @@ function AIAssistant() {
           padding: 0.75rem;
           border: 1px solid var(--border-color, #e0e0e0);
           border-radius: 8px;
-          font-size: 1rem;
+          font-size: 0.95rem;
           transition: border-color 0.2s;
         }
 
@@ -789,7 +860,7 @@ function AIAssistant() {
         .form-group textarea:focus,
         .form-group select:focus {
           outline: none;
-          border-color: var(--primary-color, #2563eb);
+          border-color: var(--primary-color, #6366f1);
         }
 
         .form-row {
@@ -800,7 +871,7 @@ function AIAssistant() {
 
         .btn-primary {
           padding: 0.75rem 1.5rem;
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
           border: none;
           border-radius: 8px;
@@ -811,7 +882,7 @@ function AIAssistant() {
         }
 
         .btn-primary:hover:not(:disabled) {
-          background: var(--primary-dark, #1d4ed8);
+          background: var(--primary-dark, #4f46e5);
         }
 
         .btn-primary:disabled {
@@ -836,10 +907,11 @@ function AIAssistant() {
 
         .result-header h3 {
           margin: 0;
+          font-size: 1.1rem;
         }
 
         .root-badge {
-          padding: 0.25rem 0.75rem;
+          padding: 0.35rem 0.85rem;
           border-radius: 16px;
           color: white;
           font-weight: 600;
@@ -848,16 +920,17 @@ function AIAssistant() {
 
         .confidence-bar {
           position: relative;
-          height: 24px;
+          height: 28px;
           background: #e0e0e0;
-          border-radius: 12px;
+          border-radius: 14px;
           overflow: hidden;
           margin-bottom: 1rem;
         }
 
         .confidence-bar.small {
-          height: 16px;
-          margin: 0.5rem 0;
+          height: 20px;
+          margin: 0.75rem 0;
+          border-radius: 10px;
         }
 
         .confidence-fill {
@@ -866,24 +939,55 @@ function AIAssistant() {
           top: 0;
           height: 100%;
           background: linear-gradient(90deg, #22c55e, #16a34a);
-          border-radius: 12px;
+          border-radius: inherit;
           transition: width 0.5s ease;
         }
 
         .confidence-bar span {
           position: absolute;
-          right: 8px;
+          right: 12px;
           top: 50%;
           transform: translateY(-50%);
-          font-size: 0.75rem;
+          font-size: 0.8rem;
           font-weight: 600;
           color: #333;
         }
 
-        .reasoning {
-          margin: 0;
+        .reasoning-box,
+        .resolution-box,
+        .issues-box,
+        .suggestions-box {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: white;
+          border-radius: 6px;
+          border: 1px solid var(--border-color, #e0e0e0);
+        }
+
+        .reasoning-box h4,
+        .resolution-box h4,
+        .issues-box h4,
+        .suggestions-box h4 {
+          margin: 0 0 0.5rem 0;
+          font-size: 0.9rem;
           color: var(--text-secondary, #666);
+        }
+
+        .reasoning-box p,
+        .resolution-box p {
+          margin: 0;
           line-height: 1.5;
+        }
+
+        .issues-box ul,
+        .suggestions-box ul {
+          margin: 0;
+          padding-left: 1.25rem;
+        }
+
+        .issues-box li,
+        .suggestions-box li {
+          margin-bottom: 0.25rem;
         }
 
         .results-list {
@@ -892,6 +996,7 @@ function AIAssistant() {
 
         .results-list h3 {
           margin: 0 0 1rem 0;
+          font-size: 1rem;
         }
 
         .causality-card,
@@ -911,22 +1016,31 @@ function AIAssistant() {
         }
 
         .entity {
-          padding: 0.25rem 0.5rem;
-          background: var(--primary-light, #dbeafe);
+          padding: 0.3rem 0.6rem;
+          background: #dbeafe;
           border-radius: 4px;
           font-weight: 500;
+          font-size: 0.9rem;
         }
 
         .arrow {
           color: var(--text-secondary, #666);
+          font-size: 1.2rem;
         }
 
         .causality-type {
-          padding: 0.25rem 0.5rem;
+          padding: 0.3rem 0.6rem;
           background: #fef3c7;
           border-radius: 4px;
           font-size: 0.85rem;
-          font-weight: 500;
+          font-weight: 600;
+        }
+
+        .reasoning {
+          margin: 0.75rem 0 0 0;
+          font-size: 0.9rem;
+          color: var(--text-secondary, #666);
+          line-height: 1.4;
         }
 
         .epistemic-metrics {
@@ -938,24 +1052,27 @@ function AIAssistant() {
         .metric {
           display: flex;
           flex-direction: column;
+          align-items: center;
           gap: 0.25rem;
         }
 
-        .metric .label {
+        .metric-value {
+          font-size: 2rem;
+          font-weight: 700;
+          color: var(--primary-color, #6366f1);
+        }
+
+        .metric-label {
           font-size: 0.85rem;
           color: var(--text-secondary, #666);
         }
 
-        .metric .value {
-          font-size: 1.5rem;
-          font-weight: 600;
-        }
-
         .basis-badge {
-          padding: 0.25rem 0.75rem;
+          padding: 0.35rem 0.85rem;
           border-radius: 16px;
-          font-weight: 500;
+          font-weight: 600;
           text-transform: capitalize;
+          font-size: 0.9rem;
         }
 
         .basis-badge.axiomatic { background: #dbeafe; color: #1e40af; }
@@ -973,7 +1090,8 @@ function AIAssistant() {
         .status-badge {
           padding: 0.5rem 1rem;
           border-radius: 8px;
-          font-weight: 500;
+          font-weight: 600;
+          font-size: 0.9rem;
         }
 
         .status-badge.success {
@@ -988,10 +1106,7 @@ function AIAssistant() {
 
         .rounds {
           color: var(--text-secondary, #666);
-        }
-
-        .resolution h4 {
-          margin: 0 0 0.5rem 0;
+          font-size: 0.9rem;
         }
 
         .enhancement-header {
@@ -1002,21 +1117,24 @@ function AIAssistant() {
         }
 
         .type-badge {
-          padding: 0.25rem 0.5rem;
-          background: var(--primary-light, #dbeafe);
+          padding: 0.25rem 0.6rem;
+          background: #dbeafe;
           border-radius: 4px;
-          font-size: 0.85rem;
-          font-weight: 500;
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-transform: uppercase;
         }
 
         .confidence {
-          font-weight: 600;
-          color: var(--primary-color, #2563eb);
+          font-size: 0.85rem;
+          color: var(--primary-color, #6366f1);
+          font-weight: 500;
         }
 
         .enhanced-value {
           font-weight: 500;
           margin-bottom: 0.5rem;
+          font-size: 1rem;
         }
 
         .rationale {
@@ -1034,29 +1152,29 @@ function AIAssistant() {
 
         .score-circle {
           display: flex;
-          flex-direction: column;
-          align-items: center;
+          align-items: baseline;
           justify-content: center;
-          width: 80px;
-          height: 80px;
+          width: 100px;
+          height: 100px;
           border-radius: 50%;
           background: linear-gradient(135deg, #22c55e, #16a34a);
           color: white;
         }
 
         .score-circle .score {
-          font-size: 1.75rem;
+          font-size: 2.25rem;
           font-weight: 700;
         }
 
         .score-circle .label {
-          font-size: 0.75rem;
+          font-size: 1rem;
+          opacity: 0.8;
         }
 
         .recommendation-badge {
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 1.25rem;
           border-radius: 8px;
-          font-weight: 500;
+          font-weight: 600;
         }
 
         .recommendation-badge.integrate {
@@ -1074,25 +1192,6 @@ function AIAssistant() {
           color: #dc2626;
         }
 
-        .issues, .suggestions {
-          margin-top: 1rem;
-        }
-
-        .issues h4, .suggestions h4 {
-          margin: 0 0 0.5rem 0;
-          font-size: 0.9rem;
-        }
-
-        .issues ul, .suggestions ul {
-          margin: 0;
-          padding-left: 1.25rem;
-        }
-
-        .issues li, .suggestions li {
-          margin-bottom: 0.25rem;
-          color: var(--text-secondary, #666);
-        }
-
         @media (max-width: 640px) {
           .form-row {
             grid-template-columns: 1fr;
@@ -1102,8 +1201,13 @@ function AIAssistant() {
             justify-content: center;
           }
 
-          .tab span:not(.tab-icon) {
+          .tab .tab-label {
             display: none;
+          }
+
+          .epistemic-metrics {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
       `}</style>

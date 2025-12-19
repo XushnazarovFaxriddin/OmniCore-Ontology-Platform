@@ -2,18 +2,73 @@ import { useState, useRef, useEffect } from 'react';
 import { aiApi } from '../api/client';
 import type { ChatMessage } from '../types';
 
+// OmniCore Project Context for AI
+const OMNICORE_CONTEXT = `
+You are OmniCore AI Assistant - an intelligent assistant for the OmniCore Ontology Platform v10.
+
+## About OmniCore Platform
+OmniCore is a comprehensive ontology management and knowledge engineering platform designed for:
+- Managing semantic knowledge bases with RDF/OWL support
+- Multi-modal ontology integration and harmonization
+- AI-powered entity classification and relationship extraction
+- Epistemic reasoning with certainty tracking
+
+## Core Features
+1. **Root Management**: Classify entities into 4 fundamental types:
+   - EXTANT: Physical, observable entities (electrons, trees, buildings)
+   - ABSTRACT: Non-physical concepts (democracy, mathematics, justice)
+   - MENTAL: Mind-dependent entities (beliefs, emotions, thoughts)
+   - FICTIVE: Fictional entities (unicorns, superheroes)
+
+2. **Causality Engine**: Track causal relationships with 5 types:
+   - EFFICIENT: Direct cause-effect (fire causes heat)
+   - FINAL: Purpose/goal-oriented (studying for graduation)
+   - MATERIAL: Constituent causation (atoms form molecules)
+   - FORMAL: Structural causation (DNA determines traits)
+   - EMERGENT: Complex system behaviors
+
+3. **Epistemic Annotations**: Track knowledge certainty with bases:
+   - Axiomatic: Self-evident truths
+   - Empirical: Observation-based knowledge
+   - Consensus: Community-agreed facts
+   - Speculative: Hypothetical knowledge
+
+4. **MMO (Meta-Meta Ontology)**: Quality metrics system tracking:
+   - Completeness, Coverage, Coherence, Utility, Inclusivity
+
+5. **AI/SLM Services**: Powered by local Ollama models for:
+   - Root type inference
+   - Causality extraction
+   - Conflict resolution via multi-agent debate
+   - Strategic planning
+
+## Developer Capabilities
+- RESTful API with FastAPI backend
+- React + TypeScript frontend
+- PostgreSQL/SQLite database support
+- Docker & Kubernetes deployment ready
+- Extensible plugin architecture
+
+## How to Help Users
+- Answer questions about ontology concepts
+- Explain platform features and usage
+- Guide through API endpoints
+- Help with entity classification
+- Assist with troubleshooting
+`;
+
 function AIChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'system',
-      content: 'OmniCore AI Assistant tayyor. Ontologiya, bilim muhandisligi va semantik texnologiyalar bo\'yicha savollaringizga javob beraman.',
+      content: 'OmniCore AI Assistant ready. Ask me anything about ontology management, knowledge engineering, or the OmniCore platform features.',
       timestamp: new Date().toISOString(),
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [context, setContext] = useState('');
+  const [showContext, setShowContext] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -45,7 +100,7 @@ function AIChat() {
         .concat(userMessage)
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const response = await aiApi.chat(chatHistory, context || undefined);
+      const response = await aiApi.chat(chatHistory, OMNICORE_CONTEXT);
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -65,7 +120,7 @@ function AIChat() {
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.',
+        content: 'Connection error. Please ensure the SLM service is running (Ollama recommended). Check /ai/models for status.',
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -75,10 +130,12 @@ function AIChat() {
   };
 
   const quickActions = [
-    { label: 'Root turini aniqlash', prompt: 'Menga root turini aniqlashda yordam bering' },
-    { label: 'Kauzal aloqalar', prompt: 'Ikki entity o\'rtasidagi kauzal aloqalarni qanday topish mumkin?' },
-    { label: 'Epistemik annotatsiya', prompt: 'Epistemik annotatsiya nima va qanday ishlatiladi?' },
-    { label: 'Ontologiya sifati', prompt: 'Ontologiya sifatini qanday baholash mumkin?' },
+    { label: 'What is OmniCore?', prompt: 'What is the OmniCore platform and what are its main features?' },
+    { label: 'Root Types', prompt: 'Explain the 4 root types (EXTANT, ABSTRACT, MENTAL, FICTIVE) with examples' },
+    { label: 'Causality Types', prompt: 'What are the 5 causality types and when to use each?' },
+    { label: 'API Guide', prompt: 'Give me an overview of the main API endpoints available' },
+    { label: 'Getting Started', prompt: 'How do I get started with OmniCore as a developer?' },
+    { label: 'MMO Metrics', prompt: 'Explain the MMO quality metrics system' },
   ];
 
   const clearChat = () => {
@@ -86,7 +143,7 @@ function AIChat() {
       {
         id: Date.now().toString(),
         role: 'system',
-        content: 'Chat tozalandi. Yangi suhbat boshlang.',
+        content: 'Chat cleared. Ready for new conversation.',
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -95,23 +152,33 @@ function AIChat() {
   return (
     <div className="ai-chat-container">
       <div className="ai-chat-header">
-        <h1>AI Chat</h1>
-        <p>OmniCore AI Assistant bilan suhbatlashing</p>
+        <div className="header-content">
+          <h1>AI Chat</h1>
+          <p>Intelligent assistant for OmniCore Ontology Platform</p>
+        </div>
         <div className="chat-controls">
-          <input
-            type="text"
-            placeholder="Kontekst (ixtiyoriy)..."
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            className="context-input"
-          />
+          <button
+            onClick={() => setShowContext(!showContext)}
+            className="btn-outline"
+            title="View AI Context"
+          >
+            {showContext ? 'Hide Context' : 'View Context'}
+          </button>
           <button onClick={clearChat} className="btn-secondary">
-            Tozalash
+            Clear Chat
           </button>
         </div>
       </div>
 
+      {showContext && (
+        <div className="context-panel">
+          <h3>AI Knowledge Context</h3>
+          <pre>{OMNICORE_CONTEXT}</pre>
+        </div>
+      )}
+
       <div className="quick-actions">
+        <span className="quick-label">Quick prompts:</span>
         {quickActions.map((action, idx) => (
           <button
             key={idx}
@@ -131,7 +198,7 @@ function AIChat() {
           >
             <div className="message-header">
               <span className="message-role">
-                {message.role === 'user' ? 'Siz' : message.role === 'assistant' ? 'AI' : 'Tizim'}
+                {message.role === 'user' ? 'You' : message.role === 'assistant' ? 'OmniCore AI' : 'System'}
               </span>
               <span className="message-time">
                 {new Date(message.timestamp).toLocaleTimeString()}
@@ -143,8 +210,9 @@ function AIChat() {
             {message.metadata && (
               <div className="message-meta">
                 <span>Model: {message.metadata.model as string}</span>
-                <span>Ishonch: {((message.metadata.confidence as number) * 100).toFixed(0)}%</span>
-                <span>Tokenlar: {message.metadata.tokens as number}</span>
+                <span>Confidence: {((message.metadata.confidence as number) * 100).toFixed(0)}%</span>
+                <span>Tokens: {message.metadata.tokens as number}</span>
+                <span>Latency: {message.metadata.latency as number}ms</span>
               </div>
             )}
           </div>
@@ -166,12 +234,12 @@ function AIChat() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Xabaringizni yozing..."
+          placeholder="Ask about OmniCore, ontologies, or knowledge engineering..."
           disabled={isLoading}
           className="chat-input"
         />
         <button type="submit" disabled={isLoading || !input.trim()} className="send-btn">
-          {isLoading ? 'Yuborilmoqda...' : 'Yuborish'}
+          {isLoading ? 'Sending...' : 'Send'}
         </button>
       </form>
 
@@ -180,23 +248,27 @@ function AIChat() {
           display: flex;
           flex-direction: column;
           height: calc(100vh - 100px);
-          max-width: 900px;
+          max-width: 1000px;
           margin: 0 auto;
         }
 
         .ai-chat-header {
-          padding: 1rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding: 1rem 1.5rem;
           border-bottom: 1px solid var(--border-color, #e0e0e0);
         }
 
-        .ai-chat-header h1 {
-          margin: 0 0 0.5rem 0;
-          color: var(--primary-color, #2563eb);
+        .header-content h1 {
+          margin: 0 0 0.25rem 0;
+          color: var(--primary-color, #6366f1);
         }
 
-        .ai-chat-header p {
-          margin: 0 0 1rem 0;
+        .header-content p {
+          margin: 0;
           color: var(--text-secondary, #666);
+          font-size: 0.9rem;
         }
 
         .chat-controls {
@@ -204,11 +276,27 @@ function AIChat() {
           gap: 0.5rem;
         }
 
-        .context-input {
-          flex: 1;
-          padding: 0.5rem;
-          border: 1px solid var(--border-color, #e0e0e0);
-          border-radius: 4px;
+        .context-panel {
+          max-height: 300px;
+          overflow-y: auto;
+          padding: 1rem;
+          background: #1e293b;
+          color: #e2e8f0;
+          font-size: 0.8rem;
+          border-bottom: 1px solid var(--border-color, #e0e0e0);
+        }
+
+        .context-panel h3 {
+          margin: 0 0 0.5rem 0;
+          color: #94a3b8;
+        }
+
+        .context-panel pre {
+          margin: 0;
+          white-space: pre-wrap;
+          font-family: 'Monaco', 'Menlo', monospace;
+          font-size: 0.75rem;
+          line-height: 1.4;
         }
 
         .quick-actions {
@@ -216,7 +304,14 @@ function AIChat() {
           flex-wrap: wrap;
           gap: 0.5rem;
           padding: 0.75rem 1rem;
-          background: var(--bg-secondary, #f5f5f5);
+          background: var(--bg-secondary, #f8fafc);
+          align-items: center;
+        }
+
+        .quick-label {
+          font-size: 0.85rem;
+          color: var(--text-secondary, #666);
+          margin-right: 0.5rem;
         }
 
         .quick-action-btn {
@@ -225,14 +320,14 @@ function AIChat() {
           border: 1px solid var(--border-color, #e0e0e0);
           border-radius: 16px;
           cursor: pointer;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           transition: all 0.2s;
         }
 
         .quick-action-btn:hover {
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
-          border-color: var(--primary-color, #2563eb);
+          border-color: var(--primary-color, #6366f1);
         }
 
         .chat-messages {
@@ -245,7 +340,7 @@ function AIChat() {
         }
 
         .message {
-          max-width: 80%;
+          max-width: 85%;
           padding: 0.75rem 1rem;
           border-radius: 12px;
           animation: fadeIn 0.3s ease;
@@ -258,19 +353,20 @@ function AIChat() {
 
         .message.user {
           align-self: flex-end;
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
         }
 
         .message.assistant {
           align-self: flex-start;
-          background: var(--bg-secondary, #f0f0f0);
+          background: white;
+          border: 1px solid var(--border-color, #e0e0e0);
         }
 
         .message.system {
           align-self: center;
-          background: var(--warning-bg, #fff3cd);
-          color: var(--warning-text, #856404);
+          background: #fef3c7;
+          color: #92400e;
           font-size: 0.9rem;
           max-width: 90%;
         }
@@ -283,6 +379,10 @@ function AIChat() {
           opacity: 0.8;
         }
 
+        .message-role {
+          font-weight: 600;
+        }
+
         .message-content {
           white-space: pre-wrap;
           line-height: 1.5;
@@ -293,7 +393,8 @@ function AIChat() {
           gap: 1rem;
           margin-top: 0.5rem;
           font-size: 0.7rem;
-          opacity: 0.7;
+          opacity: 0.6;
+          flex-wrap: wrap;
         }
 
         .typing-indicator {
@@ -305,7 +406,7 @@ function AIChat() {
         .typing-indicator span {
           width: 8px;
           height: 8px;
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           border-radius: 50%;
           animation: bounce 1.4s infinite both;
         }
@@ -338,12 +439,12 @@ function AIChat() {
         }
 
         .chat-input:focus {
-          border-color: var(--primary-color, #2563eb);
+          border-color: var(--primary-color, #6366f1);
         }
 
         .send-btn {
           padding: 0.75rem 1.5rem;
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
           border: none;
           border-radius: 24px;
@@ -353,7 +454,7 @@ function AIChat() {
         }
 
         .send-btn:hover:not(:disabled) {
-          background: var(--primary-dark, #1d4ed8);
+          background: var(--primary-dark, #4f46e5);
         }
 
         .send-btn:disabled {
@@ -365,12 +466,28 @@ function AIChat() {
           padding: 0.5rem 1rem;
           background: transparent;
           border: 1px solid var(--border-color, #e0e0e0);
-          border-radius: 4px;
+          border-radius: 6px;
           cursor: pointer;
+          font-size: 0.9rem;
         }
 
         .btn-secondary:hover {
           background: var(--bg-secondary, #f5f5f5);
+        }
+
+        .btn-outline {
+          padding: 0.5rem 1rem;
+          background: transparent;
+          border: 1px solid var(--primary-color, #6366f1);
+          color: var(--primary-color, #6366f1);
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 0.9rem;
+        }
+
+        .btn-outline:hover {
+          background: var(--primary-color, #6366f1);
+          color: white;
         }
       `}</style>
     </div>

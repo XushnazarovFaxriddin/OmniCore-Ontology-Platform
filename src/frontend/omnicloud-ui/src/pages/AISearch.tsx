@@ -23,6 +23,7 @@ function AISearch() {
   const [activeTab, setActiveTab] = useState<'all' | 'roots' | 'causality' | 'epistemic'>('all');
   const [entityTypes, setEntityTypes] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState<'semantic' | 'exact'>('semantic');
 
   const entityTypeOptions = ['EXTANT', 'ABSTRACT', 'MENTAL', 'FICTIVE'];
 
@@ -35,19 +36,28 @@ function AISearch() {
     setCombinedResults(null);
 
     try {
-      // First, get AI interpretation
-      const aiResponse = await aiApi.smartSearch(
-        query,
-        entityTypes.length > 0 ? entityTypes : undefined
-      );
+      // First, get AI interpretation for semantic search
+      if (searchMode === 'semantic') {
+        const aiResponse = await aiApi.smartSearch(
+          query,
+          entityTypes.length > 0 ? entityTypes : undefined
+        );
 
-      // Parse AI response
-      let parsed: SearchResult;
-      try {
-        const jsonMatch = aiResponse.response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        } else {
+        // Parse AI response
+        let parsed: SearchResult;
+        try {
+          const jsonMatch = aiResponse.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            parsed = {
+              interpreted_query: query,
+              suggested_entities: [],
+              related_concepts: [],
+              search_tips: [],
+            };
+          }
+        } catch {
           parsed = {
             interpreted_query: query,
             suggested_entities: [],
@@ -55,21 +65,14 @@ function AISearch() {
             search_tips: [],
           };
         }
-      } catch {
-        parsed = {
-          interpreted_query: query,
-          suggested_entities: [],
-          related_concepts: [],
-          search_tips: [],
-        };
+        setAiResult(parsed);
       }
-      setAiResult(parsed);
 
       // Then, search actual data
       const [rootsData, causalityData, epistemicData] = await Promise.all([
-        rootsApi.list(0, 20).catch(() => ({ items: [] })),
-        causalityApi.list(0, 20).catch(() => ({ items: [] })),
-        epistemicApi.list(0, 20).catch(() => ({ items: [] })),
+        rootsApi.list(0, 50).catch(() => ({ items: [] })),
+        causalityApi.list(0, 50).catch(() => ({ items: [] })),
+        epistemicApi.list(0, 50).catch(() => ({ items: [] })),
       ]);
 
       // Filter results based on query
@@ -100,7 +103,7 @@ function AISearch() {
         epistemic: filteredEpistemic,
       });
     } catch (err) {
-      setError('Qidirishda xatolik yuz berdi');
+      setError('Search failed. Please try again or check your connection.');
     } finally {
       setIsSearching(false);
     }
@@ -131,15 +134,37 @@ function AISearch() {
     FICTIVE: '#f97316',
   };
 
+  const rootTypeDescriptions: Record<string, string> = {
+    EXTANT: 'Physical, observable entities',
+    ABSTRACT: 'Non-physical concepts',
+    MENTAL: 'Mind-dependent entities',
+    FICTIVE: 'Fictional entities',
+  };
+
   return (
     <div className="ai-search">
       <header className="search-header">
-        <h1>AI Qidiruv</h1>
-        <p>Ontologiya ma'lumotlarini AI yordamida qidiring</p>
+        <h1>AI-Powered Search</h1>
+        <p>Search across ontology data with semantic understanding</p>
       </header>
 
       {/* Search Box */}
       <div className="search-box">
+        <div className="search-mode-toggle">
+          <button
+            className={`mode-btn ${searchMode === 'semantic' ? 'active' : ''}`}
+            onClick={() => setSearchMode('semantic')}
+          >
+            Semantic Search
+          </button>
+          <button
+            className={`mode-btn ${searchMode === 'exact' ? 'active' : ''}`}
+            onClick={() => setSearchMode('exact')}
+          >
+            Exact Match
+          </button>
+        </div>
+
         <div className="search-input-wrapper">
           <span className="search-icon">🔍</span>
           <input
@@ -147,7 +172,7 @@ function AISearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Qidiruv so'rovini kiriting..."
+            placeholder="Enter your search query..."
             className="search-input"
           />
           <button
@@ -155,18 +180,19 @@ function AISearch() {
             onClick={handleSearch}
             disabled={isSearching || !query.trim()}
           >
-            {isSearching ? 'Qidirilmoqda...' : 'Qidirish'}
+            {isSearching ? 'Searching...' : 'Search'}
           </button>
         </div>
 
         {/* Entity Type Filters */}
         <div className="filters">
-          <span className="filter-label">Filtr:</span>
+          <span className="filter-label">Filter by Root Type:</span>
           {entityTypeOptions.map((type) => (
             <button
               key={type}
               className={`filter-btn ${entityTypes.includes(type) ? 'active' : ''}`}
               onClick={() => toggleEntityType(type)}
+              title={rootTypeDescriptions[type]}
               style={{
                 borderColor: entityTypes.includes(type) ? rootTypeColors[type] : undefined,
                 background: entityTypes.includes(type) ? `${rootTypeColors[type]}20` : undefined,
@@ -177,7 +203,7 @@ function AISearch() {
           ))}
           {entityTypes.length > 0 && (
             <button className="clear-btn" onClick={() => setEntityTypes([])}>
-              Tozalash
+              Clear Filters
             </button>
           )}
         </div>
@@ -191,18 +217,18 @@ function AISearch() {
       )}
 
       {/* AI Interpretation */}
-      {aiResult && (
+      {aiResult && searchMode === 'semantic' && (
         <div className="ai-interpretation">
-          <h3>AI Tahlili</h3>
+          <h3>AI Analysis</h3>
           <div className="interpretation-content">
             <div className="interpretation-item">
-              <span className="label">Tushunilgan so'rov:</span>
+              <span className="label">Interpreted Query:</span>
               <span className="value">{aiResult.interpreted_query}</span>
             </div>
 
             {aiResult.suggested_entities.length > 0 && (
               <div className="interpretation-item">
-                <span className="label">Tavsiya etilgan entity'lar:</span>
+                <span className="label">Suggested Entities:</span>
                 <div className="tags">
                   {aiResult.suggested_entities.map((entity, idx) => (
                     <span key={idx} className="tag suggested">{entity}</span>
@@ -213,7 +239,7 @@ function AISearch() {
 
             {aiResult.related_concepts.length > 0 && (
               <div className="interpretation-item">
-                <span className="label">Bog'liq tushunchalar:</span>
+                <span className="label">Related Concepts:</span>
                 <div className="tags">
                   {aiResult.related_concepts.map((concept, idx) => (
                     <span key={idx} className="tag related">{concept}</span>
@@ -224,7 +250,7 @@ function AISearch() {
 
             {aiResult.search_tips.length > 0 && (
               <div className="interpretation-item">
-                <span className="label">Qidiruv bo'yicha maslahatlar:</span>
+                <span className="label">Search Tips:</span>
                 <ul className="tips">
                   {aiResult.search_tips.map((tip, idx) => (
                     <li key={idx}>{tip}</li>
@@ -240,31 +266,31 @@ function AISearch() {
       {combinedResults && (
         <div className="results-section">
           <div className="results-header">
-            <h3>Natijalar ({totalResults})</h3>
+            <h3>Results ({totalResults})</h3>
             <div className="results-tabs">
               <button
                 className={`tab ${activeTab === 'all' ? 'active' : ''}`}
                 onClick={() => setActiveTab('all')}
               >
-                Hammasi ({totalResults})
+                All ({totalResults})
               </button>
               <button
                 className={`tab ${activeTab === 'roots' ? 'active' : ''}`}
                 onClick={() => setActiveTab('roots')}
               >
-                Root'lar ({combinedResults.roots.length})
+                Roots ({combinedResults.roots.length})
               </button>
               <button
                 className={`tab ${activeTab === 'causality' ? 'active' : ''}`}
                 onClick={() => setActiveTab('causality')}
               >
-                Kauzallik ({combinedResults.causality.length})
+                Causality ({combinedResults.causality.length})
               </button>
               <button
                 className={`tab ${activeTab === 'epistemic' ? 'active' : ''}`}
                 onClick={() => setActiveTab('epistemic')}
               >
-                Epistemik ({combinedResults.epistemic.length})
+                Epistemic ({combinedResults.epistemic.length})
               </button>
             </div>
           </div>
@@ -274,7 +300,7 @@ function AISearch() {
             {(activeTab === 'all' || activeTab === 'roots') &&
               combinedResults.roots.map((root) => (
                 <div key={root.id} className="result-card root-card">
-                  <div className="card-type">Root</div>
+                  <div className="card-type">Root Entity</div>
                   <div className="card-header">
                     <h4>{root.name}</h4>
                     <span
@@ -298,7 +324,7 @@ function AISearch() {
             {(activeTab === 'all' || activeTab === 'causality') &&
               combinedResults.causality.map((link) => (
                 <div key={link.id} className="result-card causality-card">
-                  <div className="card-type">Kauzal Aloqa</div>
+                  <div className="card-type">Causal Relationship</div>
                   <div className="causality-flow">
                     <span className="entity">{link.source_entity_id.slice(0, 12)}...</span>
                     <span className="arrow">→</span>
@@ -310,7 +336,7 @@ function AISearch() {
                     <p className="card-description">{link.description}</p>
                   )}
                   <div className="card-meta">
-                    <span>Ishonch: {(link.confidence * 100).toFixed(0)}%</span>
+                    <span>Confidence: {(link.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               ))}
@@ -319,13 +345,13 @@ function AISearch() {
             {(activeTab === 'all' || activeTab === 'epistemic') &&
               combinedResults.epistemic.map((annotation) => (
                 <div key={annotation.id} className="result-card epistemic-card">
-                  <div className="card-type">Epistemik</div>
+                  <div className="card-type">Epistemic Annotation</div>
                   <div className="epistemic-header">
                     <span className={`basis-badge ${annotation.basis}`}>
                       {annotation.basis}
                     </span>
                     <span className="certainty">
-                      {(annotation.certainty * 100).toFixed(0)}% aniqlik
+                      {(annotation.certainty * 100).toFixed(0)}% certainty
                     </span>
                   </div>
                   {annotation.note && (
@@ -333,7 +359,7 @@ function AISearch() {
                   )}
                   {annotation.source && (
                     <div className="card-meta">
-                      <span>Manba: {annotation.source}</span>
+                      <span>Source: {annotation.source}</span>
                     </div>
                   )}
                 </div>
@@ -342,8 +368,8 @@ function AISearch() {
             {totalResults === 0 && (
               <div className="no-results">
                 <span className="no-results-icon">🔍</span>
-                <p>Hech narsa topilmadi</p>
-                <p className="hint">Boshqa kalit so'zlar bilan qidirib ko'ring</p>
+                <p>No results found</p>
+                <p className="hint">Try different keywords or adjust your filters</p>
               </div>
             )}
           </div>
@@ -354,14 +380,42 @@ function AISearch() {
       {!isSearching && !aiResult && !combinedResults && (
         <div className="empty-state">
           <span className="empty-icon">🔍</span>
-          <h3>Qidiruvni boshlang</h3>
-          <p>Ontologiya ma'lumotlarini qidirish uchun so'rov kiriting</p>
+          <h3>Start Your Search</h3>
+          <p>Search through ontology data using natural language or exact terms</p>
           <div className="suggestions">
-            <p>Namuna so'rovlar:</p>
+            <p>Try these example queries:</p>
             <div className="suggestion-chips">
               <button onClick={() => setQuery('Abstract entities')}>Abstract entities</button>
               <button onClick={() => setQuery('Causal relationships')}>Causal relationships</button>
-              <button onClick={() => setQuery('High confidence')}>High confidence</button>
+              <button onClick={() => setQuery('High confidence knowledge')}>High confidence</button>
+              <button onClick={() => setQuery('Physical entities')}>Physical entities</button>
+            </div>
+          </div>
+
+          <div className="search-guide">
+            <h4>Search Guide</h4>
+            <div className="guide-items">
+              <div className="guide-item">
+                <span className="guide-icon">💡</span>
+                <div>
+                  <strong>Semantic Search</strong>
+                  <p>Uses AI to understand your intent and find related concepts</p>
+                </div>
+              </div>
+              <div className="guide-item">
+                <span className="guide-icon">🎯</span>
+                <div>
+                  <strong>Exact Match</strong>
+                  <p>Finds entities that contain your exact search terms</p>
+                </div>
+              </div>
+              <div className="guide-item">
+                <span className="guide-icon">🏷️</span>
+                <div>
+                  <strong>Root Type Filters</strong>
+                  <p>Filter results by ontological category (EXTANT, ABSTRACT, MENTAL, FICTIVE)</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -395,6 +449,33 @@ function AISearch() {
           padding: 1.5rem;
           box-shadow: 0 4px 20px rgba(0,0,0,0.1);
           margin-bottom: 1.5rem;
+        }
+
+        .search-mode-toggle {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          justify-content: center;
+        }
+
+        .mode-btn {
+          padding: 0.5rem 1rem;
+          background: var(--bg-secondary, #f5f5f5);
+          border: 1px solid var(--border-color, #e0e0e0);
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 0.9rem;
+        }
+
+        .mode-btn:hover {
+          border-color: var(--primary-color, #2563eb);
+        }
+
+        .mode-btn.active {
+          background: var(--primary-color, #2563eb);
+          color: white;
+          border-color: var(--primary-color, #2563eb);
         }
 
         .search-input-wrapper {
@@ -742,7 +823,7 @@ function AISearch() {
 
         .empty-state {
           text-align: center;
-          padding: 4rem 1rem;
+          padding: 3rem 1rem;
           background: white;
           border-radius: 12px;
         }
@@ -790,6 +871,48 @@ function AISearch() {
 
         .suggestion-chips button:hover {
           background: #dbeafe;
+        }
+
+        .search-guide {
+          margin-top: 2.5rem;
+          padding-top: 2rem;
+          border-top: 1px solid var(--border-color, #e0e0e0);
+          text-align: left;
+        }
+
+        .search-guide h4 {
+          text-align: center;
+          margin: 0 0 1.5rem 0;
+          color: var(--text-secondary, #666);
+        }
+
+        .guide-items {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1rem;
+        }
+
+        .guide-item {
+          display: flex;
+          gap: 1rem;
+          padding: 1rem;
+          background: var(--bg-secondary, #f8fafc);
+          border-radius: 8px;
+        }
+
+        .guide-icon {
+          font-size: 1.5rem;
+        }
+
+        .guide-item strong {
+          display: block;
+          margin-bottom: 0.25rem;
+        }
+
+        .guide-item p {
+          margin: 0;
+          font-size: 0.85rem;
+          color: var(--text-secondary, #666);
         }
 
         @media (max-width: 640px) {

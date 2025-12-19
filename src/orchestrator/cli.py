@@ -129,7 +129,7 @@ async def cmd_start(args):
         success = await orchestrator.start()
         if success:
             print("OmniCore v10 started successfully!")
-            print(f"API Gateway: http://localhost:8000")
+            print(f"API Gateway: http://localhost:18000")
             print(f"Dashboard: http://localhost:3000")
             print("\nServices started:")
             for name, info in orchestrator.get_status()["services"].items():

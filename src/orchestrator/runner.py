@@ -124,7 +124,7 @@ class ServiceManager:
         "gateway": ServiceConfig(
             name="API Gateway",
             module="core.gateway.api:app",
-            port=8000,
+            port=18000,
             depends_on=["roots", "causality", "epistemic", "mmo", "global"],
             health_endpoint="/health"
         ),

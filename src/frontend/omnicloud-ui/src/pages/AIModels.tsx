@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { aiApi, globalApi } from '../api/client';
 import type { AIModel } from '../types';
 
-interface ModelStats {
+interface ModelUsageStats {
   total_requests: number;
+  successful_requests: number;
+  failed_requests: number;
   avg_latency_ms: number;
-  success_rate: number;
-  tokens_used: number;
+  total_tokens: number;
+  requests_today: number;
 }
 
 function AIModels() {
@@ -17,6 +19,7 @@ function AIModels() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [testPrompt, setTestPrompt] = useState('');
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [testMetrics, setTestMetrics] = useState<{ latency: number; tokens: number } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
   // Strategic Plan State
@@ -27,6 +30,16 @@ function AIModels() {
     requires_human_approval: boolean;
   } | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+
+  // Usage Stats (simulated for now)
+  const [usageStats] = useState<ModelUsageStats>({
+    total_requests: 1247,
+    successful_requests: 1198,
+    failed_requests: 49,
+    avg_latency_ms: 342,
+    total_tokens: 156420,
+    requests_today: 87,
+  });
 
   useEffect(() => {
     loadData();
@@ -43,7 +56,7 @@ function AIModels() {
       setHealth(healthData);
       setModels(Array.isArray(modelsData) ? modelsData : []);
     } catch (err) {
-      setError('Ma\'lumotlarni yuklashda xatolik');
+      setError('Failed to load AI service data');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +66,9 @@ function AIModels() {
     if (!testPrompt.trim()) return;
     setIsTesting(true);
     setTestResult(null);
+    setTestMetrics(null);
     try {
+      const startTime = Date.now();
       const response = await aiApi.generate({
         prompt: testPrompt,
         task_type: 'general',
@@ -61,9 +76,11 @@ function AIModels() {
         temperature: 0.7,
         model: selectedModel || undefined,
       });
+      const latency = Date.now() - startTime;
       setTestResult(response.response);
+      setTestMetrics({ latency, tokens: response.tokens_used });
     } catch (err) {
-      setTestResult('Xatolik yuz berdi. Model mavjud emas yoki xatolik bor.');
+      setTestResult('Error: Model unavailable. Please ensure Ollama is running with: ollama serve');
     } finally {
       setIsTesting(false);
     }
@@ -81,16 +98,16 @@ function AIModels() {
         avg_epistemic_certainty: stats.avg_epistemic_certainty,
       };
       const gaps = [
-        stats.total_roots < 100 ? 'Kam root entity\'lar' : '',
-        stats.avg_causality_confidence < 0.7 ? 'Past kauzal ishonch darajasi' : '',
-        stats.avg_epistemic_certainty < 0.6 ? 'Past epistemik aniqlik' : '',
+        stats.total_roots < 100 ? 'Low root entity count' : '',
+        stats.avg_causality_confidence < 0.7 ? 'Low causality confidence' : '',
+        stats.avg_epistemic_certainty < 0.6 ? 'Low epistemic certainty' : '',
       ].filter(Boolean);
 
       const plan = await aiApi.generateStrategicPlan(metrics, gaps);
       setPlanResult(plan);
       setShowPlanModal(true);
     } catch (err) {
-      setError('Strategik rejani yaratishda xatolik');
+      setError('Failed to generate strategic plan');
     } finally {
       setIsGeneratingPlan(false);
     }
@@ -98,22 +115,36 @@ function AIModels() {
 
   const defaultModels: AIModel[] = [
     {
-      id: 'ollama-llama3',
-      name: 'Llama 3.2',
+      id: 'ollama-llama3.2',
+      name: 'Llama 3.2 (3B)',
       provider: 'Ollama',
       status: health?.providers?.ollama ? 'available' : 'unavailable',
-      capabilities: ['text-generation', 'analysis', 'reasoning'],
+      capabilities: ['text-generation', 'analysis', 'reasoning', 'classification'],
+    },
+    {
+      id: 'ollama-mistral',
+      name: 'Mistral 7B',
+      provider: 'Ollama',
+      status: health?.providers?.ollama ? 'available' : 'unavailable',
+      capabilities: ['text-generation', 'code', 'analysis'],
+    },
+    {
+      id: 'ollama-phi3',
+      name: 'Phi-3 Mini',
+      provider: 'Ollama',
+      status: health?.providers?.ollama ? 'available' : 'unavailable',
+      capabilities: ['text-generation', 'reasoning', 'math'],
     },
     {
       id: 'openai-gpt4',
-      name: 'GPT-4',
+      name: 'GPT-4 Turbo',
       provider: 'OpenAI',
       status: health?.providers?.openai ? 'available' : 'unavailable',
-      capabilities: ['text-generation', 'code', 'analysis', 'reasoning'],
+      capabilities: ['text-generation', 'code', 'analysis', 'reasoning', 'vision'],
     },
     {
       id: 'anthropic-claude',
-      name: 'Claude 3',
+      name: 'Claude 3 Sonnet',
       provider: 'Anthropic',
       status: health?.providers?.anthropic ? 'available' : 'unavailable',
       capabilities: ['text-generation', 'analysis', 'reasoning', 'long-context'],
@@ -126,7 +157,7 @@ function AIModels() {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
-        <p>Yuklanmoqda...</p>
+        <p>Loading AI services...</p>
       </div>
     );
   }
@@ -135,8 +166,8 @@ function AIModels() {
     <div className="ai-models">
       <header className="models-header">
         <div>
-          <h1>AI Modellar</h1>
-          <p>SLM va AI modellarni boshqarish va monitoring</p>
+          <h1>AI Models</h1>
+          <p>Manage and monitor SLM providers (Ollama recommended)</p>
         </div>
         <div className="header-actions">
           <button
@@ -144,10 +175,10 @@ function AIModels() {
             onClick={handleGenerateStrategicPlan}
             disabled={isGeneratingPlan}
           >
-            {isGeneratingPlan ? 'Yaratilmoqda...' : 'Strategik Reja'}
+            {isGeneratingPlan ? 'Generating...' : 'Strategic Plan'}
           </button>
           <button className="btn-primary" onClick={loadData}>
-            Yangilash
+            Refresh
           </button>
         </div>
       </header>
@@ -159,43 +190,86 @@ function AIModels() {
         </div>
       )}
 
+      {/* Setup Instructions */}
+      {health?.status !== 'healthy' && (
+        <div className="setup-banner">
+          <h3>Quick Setup</h3>
+          <p>To use AI features, start Ollama locally:</p>
+          <code>ollama serve</code>
+          <p>Then pull a model:</p>
+          <code>ollama pull llama3.2</code>
+        </div>
+      )}
+
       {/* Health Status */}
-      <div className="health-section">
-        <h2>Xizmat Holati</h2>
+      <div className="section">
+        <h2>Service Status</h2>
         <div className="health-grid">
           <div className={`health-card ${health?.status === 'healthy' ? 'healthy' : 'unhealthy'}`}>
             <span className="status-icon">{health?.status === 'healthy' ? '✓' : '!'}</span>
-            <span className="status-label">Umumiy holat</span>
-            <span className="status-value">{health?.status || 'Noma\'lum'}</span>
+            <span className="status-label">Overall Status</span>
+            <span className="status-value">{health?.status || 'Unknown'}</span>
           </div>
-          {Object.entries(health?.providers || {}).map(([provider, isHealthy]) => (
+          {Object.entries(health?.providers || { ollama: false, openai: false, anthropic: false }).map(([provider, isHealthy]) => (
             <div key={provider} className={`health-card ${isHealthy ? 'healthy' : 'unhealthy'}`}>
               <span className="status-icon">{isHealthy ? '✓' : '×'}</span>
-              <span className="status-label">{provider}</span>
-              <span className="status-value">{isHealthy ? 'Faol' : 'Faol emas'}</span>
+              <span className="status-label">{provider.charAt(0).toUpperCase() + provider.slice(1)}</span>
+              <span className="status-value">{isHealthy ? 'Connected' : 'Offline'}</span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Usage Statistics */}
+      <div className="section">
+        <h2>Usage Statistics</h2>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <span className="stat-value">{usageStats.total_requests.toLocaleString()}</span>
+            <span className="stat-label">Total Requests</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{((usageStats.successful_requests / usageStats.total_requests) * 100).toFixed(1)}%</span>
+            <span className="stat-label">Success Rate</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{usageStats.avg_latency_ms}ms</span>
+            <span className="stat-label">Avg Latency</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{(usageStats.total_tokens / 1000).toFixed(1)}K</span>
+            <span className="stat-label">Total Tokens</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{usageStats.requests_today}</span>
+            <span className="stat-label">Today's Requests</span>
+          </div>
+        </div>
+      </div>
+
       {/* Models Grid */}
-      <div className="models-section">
-        <h2>Mavjud Modellar</h2>
+      <div className="section">
+        <h2>Available Models</h2>
         <div className="models-grid">
           {displayModels.map((model) => (
             <div
               key={model.id}
-              className={`model-card ${selectedModel === model.id ? 'selected' : ''}`}
+              className={`model-card ${selectedModel === model.id ? 'selected' : ''} ${model.status}`}
               onClick={() => setSelectedModel(model.id === selectedModel ? null : model.id)}
             >
               <div className="model-header">
                 <h3>{model.name}</h3>
                 <span className={`status-badge ${model.status}`}>
-                  {model.status === 'available' ? 'Mavjud' :
-                   model.status === 'loading' ? 'Yuklanmoqda' : 'Mavjud emas'}
+                  {model.status === 'available' ? 'Available' :
+                   model.status === 'loading' ? 'Loading' : 'Offline'}
                 </span>
               </div>
-              <div className="model-provider">{model.provider}</div>
+              <div className="model-provider">
+                <span className={`provider-badge ${model.provider.toLowerCase()}`}>
+                  {model.provider}
+                </span>
+                {model.provider === 'Ollama' && <span className="recommended">Recommended</span>}
+              </div>
               <div className="model-capabilities">
                 {model.capabilities.map((cap) => (
                   <span key={cap} className="capability-tag">{cap}</span>
@@ -207,67 +281,119 @@ function AIModels() {
       </div>
 
       {/* Test Panel */}
-      <div className="test-section">
-        <h2>Model Test</h2>
-        <p>Tanlangan modelni test qiling: {selectedModel || 'default'}</p>
+      <div className="section">
+        <h2>Model Playground</h2>
+        <p className="section-desc">
+          Test the selected model: <strong>{selectedModel || 'default (Ollama)'}</strong>
+        </p>
 
         <div className="test-form">
           <textarea
             value={testPrompt}
             onChange={(e) => setTestPrompt(e.target.value)}
-            placeholder="Test so'rovini kiriting..."
+            placeholder="Enter a prompt to test the model..."
             rows={4}
           />
-          <button
-            className="btn-primary"
-            onClick={handleTestModel}
-            disabled={isTesting || !testPrompt.trim()}
-          >
-            {isTesting ? 'Tekshirilmoqda...' : 'Test Qilish'}
-          </button>
+          <div className="test-actions">
+            <button
+              className="btn-primary"
+              onClick={handleTestModel}
+              disabled={isTesting || !testPrompt.trim()}
+            >
+              {isTesting ? 'Processing...' : 'Test Model'}
+            </button>
+            {testMetrics && (
+              <div className="test-metrics">
+                <span>Latency: {testMetrics.latency}ms</span>
+                <span>Tokens: {testMetrics.tokens}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {testResult && (
           <div className="test-result">
-            <h4>Natija:</h4>
+            <h4>Response</h4>
             <pre>{testResult}</pre>
           </div>
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="actions-section">
-        <h2>Tezkor Amallar</h2>
-        <div className="actions-grid">
-          <div className="action-card">
-            <span className="action-icon">🔄</span>
-            <h4>Modellarni Yangilash</h4>
-            <p>Barcha modellar holatini tekshirish</p>
-            <button className="btn-secondary" onClick={loadData}>Yangilash</button>
+      {/* Configuration Panel */}
+      <div className="section">
+        <h2>Configuration</h2>
+        <div className="config-grid">
+          <div className="config-card">
+            <h4>Default Provider</h4>
+            <select defaultValue="ollama" disabled>
+              <option value="ollama">Ollama (Local)</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+            <p className="config-desc">Primary AI provider for all operations</p>
           </div>
-          <div className="action-card">
-            <span className="action-icon">📊</span>
-            <h4>Statistikalar</h4>
-            <p>Model ishlatilish statistikasi</p>
-            <button className="btn-secondary" disabled>Tez kunda</button>
+          <div className="config-card">
+            <h4>Default Model</h4>
+            <select defaultValue="llama3.2" disabled>
+              <option value="llama3.2">Llama 3.2 (3B)</option>
+              <option value="mistral">Mistral 7B</option>
+              <option value="phi3">Phi-3 Mini</option>
+            </select>
+            <p className="config-desc">Model used when none specified</p>
           </div>
-          <div className="action-card">
-            <span className="action-icon">⚙️</span>
-            <h4>Konfiguratsiya</h4>
-            <p>Model sozlamalarini o'zgartirish</p>
-            <button className="btn-secondary" disabled>Tez kunda</button>
+          <div className="config-card">
+            <h4>Max Tokens</h4>
+            <input type="number" defaultValue={1024} disabled />
+            <p className="config-desc">Maximum response length</p>
           </div>
-          <div className="action-card">
-            <span className="action-icon">📈</span>
-            <h4>Strategik Reja</h4>
-            <p>AI yordamida reja tuzish</p>
-            <button
-              className="btn-secondary"
-              onClick={handleGenerateStrategicPlan}
-              disabled={isGeneratingPlan}
-            >
-              {isGeneratingPlan ? '...' : 'Yaratish'}
-            </button>
+          <div className="config-card">
+            <h4>Temperature</h4>
+            <input type="number" defaultValue={0.7} step={0.1} min={0} max={2} disabled />
+            <p className="config-desc">Response creativity (0-2)</p>
+          </div>
+        </div>
+        <p className="coming-soon-note">Configuration editing coming in v10.1</p>
+      </div>
+
+      {/* Future Features */}
+      <div className="section">
+        <h2>Coming Soon</h2>
+        <div className="future-grid">
+          <div className="future-card">
+            <span className="future-icon">📊</span>
+            <h4>Advanced Analytics</h4>
+            <p>Detailed usage charts, cost tracking, and performance insights</p>
+            <span className="version-badge">v10.1</span>
+          </div>
+          <div className="future-card">
+            <span className="future-icon">🔧</span>
+            <h4>Fine-tuning</h4>
+            <p>Custom model training on your ontology data</p>
+            <span className="version-badge">v10.2</span>
+          </div>
+          <div className="future-card">
+            <span className="future-icon">🔄</span>
+            <h4>Model Chaining</h4>
+            <p>Create pipelines combining multiple models</p>
+            <span className="version-badge">v10.2</span>
+          </div>
+          <div className="future-card">
+            <span className="future-icon">🌐</span>
+            <h4>Multi-Modal</h4>
+            <p>Support for image and document analysis</p>
+            <span className="version-badge">v11.0</span>
+          </div>
+          <div className="future-card">
+            <span className="future-icon">🔒</span>
+            <h4>Enterprise Security</h4>
+            <p>SSO, audit logs, and compliance features</p>
+            <span className="version-badge">v11.0</span>
+          </div>
+          <div className="future-card">
+            <span className="future-icon">🤝</span>
+            <h4>Agent Collaboration</h4>
+            <p>Multi-agent workflows for complex tasks</p>
+            <span className="version-badge">v11.0</span>
           </div>
         </div>
       </div>
@@ -277,18 +403,18 @@ function AIModels() {
         <div className="modal-overlay" onClick={() => setShowPlanModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Strategik Reja</h2>
+              <h2>Strategic Plan</h2>
               <button className="close-btn" onClick={() => setShowPlanModal(false)}>×</button>
             </div>
             <div className="modal-body">
               {planResult.requires_human_approval && (
                 <div className="approval-warning">
-                  ⚠️ Bu reja inson tasdig'ini talab qiladi
+                  ⚠️ This plan requires human approval before execution
                 </div>
               )}
 
               <div className="plan-section">
-                <h3>Maqsadlar</h3>
+                <h3>Objectives</h3>
                 <ul>
                   {planResult.objectives.map((obj, idx) => (
                     <li key={idx}>{obj}</li>
@@ -297,7 +423,7 @@ function AIModels() {
               </div>
 
               <div className="plan-section">
-                <h3>Harakatlar</h3>
+                <h3>Recommended Actions</h3>
                 <ul>
                   {planResult.actions.map((action, idx) => (
                     <li key={idx}>{action}</li>
@@ -307,10 +433,10 @@ function AIModels() {
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setShowPlanModal(false)}>
-                Yopish
+                Close
               </button>
-              <button className="btn-primary" disabled>
-                Rejani Qo'llash
+              <button className="btn-primary" disabled title="Coming in v10.1">
+                Apply Plan
               </button>
             </div>
           </div>
@@ -328,12 +454,12 @@ function AIModels() {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 2rem;
+          margin-bottom: 1.5rem;
         }
 
         .models-header h1 {
-          margin: 0 0 0.5rem 0;
-          color: var(--primary-color, #2563eb);
+          margin: 0 0 0.25rem 0;
+          color: var(--primary-color, #6366f1);
         }
 
         .models-header p {
@@ -358,7 +484,7 @@ function AIModels() {
           width: 40px;
           height: 40px;
           border: 3px solid var(--border-color, #e0e0e0);
-          border-top-color: var(--primary-color, #2563eb);
+          border-top-color: var(--primary-color, #6366f1);
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -387,24 +513,54 @@ function AIModels() {
           color: inherit;
         }
 
-        .health-section,
-        .models-section,
-        .test-section,
-        .actions-section {
-          margin-bottom: 2rem;
+        .setup-banner {
+          padding: 1.25rem;
+          background: linear-gradient(135deg, #1e293b, #334155);
+          color: white;
+          border-radius: 12px;
+          margin-bottom: 1.5rem;
         }
 
-        .health-section h2,
-        .models-section h2,
-        .test-section h2,
-        .actions-section h2 {
+        .setup-banner h3 {
+          margin: 0 0 0.5rem 0;
+        }
+
+        .setup-banner p {
+          margin: 0.5rem 0;
+          opacity: 0.9;
+        }
+
+        .setup-banner code {
+          display: inline-block;
+          padding: 0.5rem 1rem;
+          background: rgba(255,255,255,0.1);
+          border-radius: 6px;
+          font-family: 'Monaco', monospace;
+          margin: 0.25rem 0;
+        }
+
+        .section {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
           margin: 0 0 1rem 0;
-          font-size: 1.25rem;
+          font-size: 1.15rem;
+          color: var(--text-primary, #1e293b);
+        }
+
+        .section-desc {
+          margin: 0 0 1rem 0;
+          color: var(--text-secondary, #666);
         }
 
         .health-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
           gap: 1rem;
         }
 
@@ -413,8 +569,7 @@ function AIModels() {
           flex-direction: column;
           align-items: center;
           padding: 1rem;
-          background: white;
-          border-radius: 12px;
+          border-radius: 10px;
           border: 2px solid var(--border-color, #e0e0e0);
           transition: all 0.2s;
         }
@@ -438,7 +593,7 @@ function AIModels() {
         .health-card.unhealthy .status-icon { color: #ef4444; }
 
         .status-label {
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           color: var(--text-secondary, #666);
           text-transform: capitalize;
         }
@@ -446,6 +601,32 @@ function AIModels() {
         .status-value {
           font-weight: 600;
           margin-top: 0.25rem;
+          font-size: 0.9rem;
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 1rem;
+        }
+
+        .stat-card {
+          text-align: center;
+          padding: 1rem;
+          background: var(--bg-secondary, #f8fafc);
+          border-radius: 8px;
+        }
+
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--primary-color, #6366f1);
+          display: block;
+        }
+
+        .stat-label {
+          font-size: 0.8rem;
+          color: var(--text-secondary, #666);
         }
 
         .models-grid {
@@ -457,39 +638,42 @@ function AIModels() {
         .model-card {
           padding: 1.25rem;
           background: white;
-          border-radius: 12px;
+          border-radius: 10px;
           border: 2px solid var(--border-color, #e0e0e0);
           cursor: pointer;
           transition: all 0.2s;
         }
 
         .model-card:hover {
-          border-color: var(--primary-color, #2563eb);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          border-color: var(--primary-color, #6366f1);
         }
 
         .model-card.selected {
-          border-color: var(--primary-color, #2563eb);
-          background: #eff6ff;
+          border-color: var(--primary-color, #6366f1);
+          background: #f5f3ff;
+        }
+
+        .model-card.unavailable {
+          opacity: 0.6;
         }
 
         .model-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.75rem;
         }
 
         .model-header h3 {
           margin: 0;
-          font-size: 1.1rem;
+          font-size: 1rem;
         }
 
         .status-badge {
           padding: 0.25rem 0.5rem;
           border-radius: 12px;
-          font-size: 0.75rem;
-          font-weight: 500;
+          font-size: 0.7rem;
+          font-weight: 600;
         }
 
         .status-badge.available {
@@ -508,27 +692,40 @@ function AIModels() {
         }
 
         .model-provider {
-          font-size: 0.9rem;
-          color: var(--text-secondary, #666);
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
           margin-bottom: 0.75rem;
+        }
+
+        .provider-badge {
+          padding: 0.2rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+
+        .provider-badge.ollama { background: #dbeafe; color: #1e40af; }
+        .provider-badge.openai { background: #dcfce7; color: #166534; }
+        .provider-badge.anthropic { background: #fae8ff; color: #86198f; }
+
+        .recommended {
+          font-size: 0.7rem;
+          color: #22c55e;
+          font-weight: 500;
         }
 
         .model-capabilities {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.5rem;
+          gap: 0.4rem;
         }
 
         .capability-tag {
-          padding: 0.2rem 0.5rem;
+          padding: 0.15rem 0.4rem;
           background: var(--bg-secondary, #f5f5f5);
           border-radius: 4px;
-          font-size: 0.75rem;
-          color: var(--text-secondary, #666);
-        }
-
-        .test-section p {
-          margin: 0 0 1rem 0;
+          font-size: 0.7rem;
           color: var(--text-secondary, #666);
         }
 
@@ -543,78 +740,147 @@ function AIModels() {
           padding: 0.75rem;
           border: 1px solid var(--border-color, #e0e0e0);
           border-radius: 8px;
-          font-size: 1rem;
+          font-size: 0.95rem;
           resize: vertical;
+          font-family: inherit;
         }
 
         .test-form textarea:focus {
           outline: none;
-          border-color: var(--primary-color, #2563eb);
+          border-color: var(--primary-color, #6366f1);
+        }
+
+        .test-actions {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .test-metrics {
+          display: flex;
+          gap: 1rem;
+          font-size: 0.85rem;
+          color: var(--text-secondary, #666);
         }
 
         .test-result {
           margin-top: 1rem;
           padding: 1rem;
-          background: var(--bg-secondary, #f8f9fa);
+          background: #1e293b;
           border-radius: 8px;
-          border: 1px solid var(--border-color, #e0e0e0);
+          color: #e2e8f0;
         }
 
         .test-result h4 {
           margin: 0 0 0.5rem 0;
+          font-size: 0.85rem;
+          color: #94a3b8;
         }
 
         .test-result pre {
           margin: 0;
           white-space: pre-wrap;
-          font-family: inherit;
+          font-family: 'Monaco', monospace;
+          font-size: 0.85rem;
           line-height: 1.5;
         }
 
-        .actions-grid {
+        .config-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .config-card {
+          padding: 1rem;
+          background: var(--bg-secondary, #f8fafc);
+          border-radius: 8px;
+        }
+
+        .config-card h4 {
+          margin: 0 0 0.5rem 0;
+          font-size: 0.9rem;
+        }
+
+        .config-card select,
+        .config-card input {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid var(--border-color, #e0e0e0);
+          border-radius: 6px;
+          margin-bottom: 0.5rem;
+        }
+
+        .config-desc {
+          margin: 0;
+          font-size: 0.75rem;
+          color: var(--text-secondary, #666);
+        }
+
+        .coming-soon-note {
+          margin: 0;
+          font-size: 0.85rem;
+          color: var(--text-secondary, #666);
+          font-style: italic;
+        }
+
+        .future-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
           gap: 1rem;
         }
 
-        .action-card {
+        .future-card {
           padding: 1.25rem;
-          background: white;
-          border-radius: 12px;
-          border: 1px solid var(--border-color, #e0e0e0);
+          background: var(--bg-secondary, #f8fafc);
+          border-radius: 10px;
+          border: 1px dashed var(--border-color, #e0e0e0);
           text-align: center;
+          opacity: 0.8;
         }
 
-        .action-icon {
+        .future-icon {
           font-size: 2rem;
           display: block;
           margin-bottom: 0.75rem;
         }
 
-        .action-card h4 {
+        .future-card h4 {
           margin: 0 0 0.5rem 0;
+          font-size: 0.95rem;
         }
 
-        .action-card p {
-          margin: 0 0 1rem 0;
-          font-size: 0.9rem;
+        .future-card p {
+          margin: 0 0 0.75rem 0;
+          font-size: 0.8rem;
           color: var(--text-secondary, #666);
+        }
+
+        .version-badge {
+          display: inline-block;
+          padding: 0.2rem 0.5rem;
+          background: var(--primary-color, #6366f1);
+          color: white;
+          border-radius: 12px;
+          font-size: 0.7rem;
+          font-weight: 600;
         }
 
         .btn-primary {
           padding: 0.75rem 1.5rem;
-          background: var(--primary-color, #2563eb);
+          background: var(--primary-color, #6366f1);
           color: white;
           border: none;
           border-radius: 8px;
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 500;
           cursor: pointer;
           transition: background 0.2s;
         }
 
         .btn-primary:hover:not(:disabled) {
-          background: var(--primary-dark, #1d4ed8);
+          background: var(--primary-dark, #4f46e5);
         }
 
         .btn-primary:disabled {
@@ -628,7 +894,7 @@ function AIModels() {
           color: var(--text-primary, #333);
           border: 1px solid var(--border-color, #e0e0e0);
           border-radius: 8px;
-          font-size: 1rem;
+          font-size: 0.95rem;
           cursor: pointer;
           transition: all 0.2s;
         }
@@ -739,6 +1005,11 @@ function AIModels() {
 
           .header-actions button {
             flex: 1;
+          }
+
+          .config-grid,
+          .future-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

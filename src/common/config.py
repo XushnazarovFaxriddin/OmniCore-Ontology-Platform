@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Service Ports (v10 Architecture)
-    api_gateway_port: int = 8000
+    api_gateway_port: int = 18000
     roots_service_port: int = 18001
     causality_service_port: int = 18002
     epistemic_service_port: int = 18003
@@ -182,7 +182,7 @@ class Settings(BaseSettings):
     # Service identification
     omnicore_env: str = Field(default="development", alias="OMNICORE_ENV")
     omnicore_service: str = Field(default="unknown", alias="OMNICORE_SERVICE")
-    omnicore_port: int = Field(default=8000, alias="OMNICORE_PORT")
+    omnicore_port: int = Field(default=18000, alias="OMNICORE_PORT")
 
     class Config:
         env_prefix = "OMNICORE_"
