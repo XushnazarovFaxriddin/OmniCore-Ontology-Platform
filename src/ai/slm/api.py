@@ -1,9 +1,16 @@
 """
 OmniCore Platform v10 - SLM Service API
 FastAPI endpoints for SLM operations
+
+Features:
+- Automatic model download on startup
+- Chat with OmniCore project context
+- Root type inference, causality extraction
+- Epistemic annotation, conflict resolution
+- Strategic planning, quality assessment
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +24,67 @@ from common.models import (
 )
 from .client import get_slm_client, SLMClient
 from .service import SLMService
+from .model_manager import get_model_manager, auto_setup_models
 
 logger = get_logger("slm.api")
+
+# OmniCore Project Context for AI Chat
+OMNICORE_CONTEXT = """You are OmniCore AI Assistant - an expert in ontology management and knowledge engineering.
+
+## About OmniCore Platform v10
+OmniCore is an AI-Orchestrated Ontological Computing System for semantic knowledge management.
+
+### Core Concepts:
+1. **Root Types** (ontological classification):
+   - EXTANT: Physical, observable entities (mountains, atoms, organisms)
+   - ABSTRACT: Non-physical concepts (mathematics, justice, algorithms)
+   - MENTAL: Mind-dependent entities (emotions, dreams, beliefs)
+   - FICTIVE: Fictional entities (Sherlock Holmes, Hogwarts, unicorns)
+
+2. **Causality Types** (Aristotelian + emergence):
+   - EFFICIENT: Direct cause-effect (fire causes heat)
+   - FINAL: Purpose/goal (heart beats to pump blood)
+   - MATERIAL: What something is made of (house made of bricks)
+   - FORMAL: Shape/pattern (DNA structure determines traits)
+   - EMERGENT: Arises from complexity (consciousness from neurons)
+
+3. **Epistemic Bases** (knowledge certainty):
+   - axiomatic: Self-evident truths (mathematical axioms)
+   - empirical: Based on observation/experiment
+   - consensus: Agreed upon by experts
+   - speculative: Hypothetical/uncertain
+
+4. **MMO (Meta-Meta Ontology)** Quality Metrics:
+   - Completeness: Coverage of domain
+   - Coverage: Breadth across areas
+   - Coherence: Internal consistency
+   - Utility: Practical usefulness
+   - Inclusivity: Diverse perspectives
+
+### Services (Port 18xxx):
+- API Gateway: 18000 (main entry point)
+- Roots Service: 18001 (entity classification)
+- Causality Service: 18002 (causal relationships)
+- Epistemic Service: 18003 (knowledge annotations)
+- MMO Service: 18004 (quality metrics)
+- Global Service: 18005 (aggregation)
+- SLM Service: 18006 (AI/language models)
+- Dashboard: 3000 (web interface)
+
+### Key Features:
+- AI-powered root type classification
+- Automatic causality extraction
+- Epistemic annotation generation
+- Multi-agent debate for conflict resolution
+- Strategic planning with human oversight
+- Ontology import from OWL/RDF/Turtle
+
+When answering questions:
+1. Be helpful and informative about ontologies
+2. Reference OmniCore concepts when relevant
+3. Provide practical examples
+4. Explain technical terms simply
+"""
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -118,6 +184,39 @@ class EntityEnhancementRequest(BaseModel):
     enhancement_types: List[str] = ["root_hint", "epistemic"]
 
 
+class ChatMessage(BaseModel):
+    """Chat message"""
+    role: str = Field(..., description="Role: user, assistant, or system")
+    content: str = Field(..., description="Message content")
+
+
+class ChatRequest(BaseModel):
+    """Chat request with context"""
+    messages: List[ChatMessage]
+    include_omnicore_context: bool = True
+    max_tokens: int = 1024
+    temperature: float = 0.7
+
+
+class ChatResponse(BaseModel):
+    """Chat response"""
+    response: str
+    model_used: str
+    confidence: float
+    tokens_used: int
+    latency_ms: float
+
+
+class ModelSetupResponse(BaseModel):
+    """Model setup status"""
+    ollama_available: bool
+    models_available: List[str]
+    primary_model: Optional[str]
+    fallback_model: Optional[str]
+    ready: bool
+    message: str
+
+
 # =============================================================================
 # Health Endpoints
 # =============================================================================
@@ -162,6 +261,180 @@ async def generate(request: SLMRequest):
     """
     client = get_slm_client()
     return await client.generate(request)
+
+
+# =============================================================================
+# Chat Endpoint with OmniCore Context
+# =============================================================================
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """
+    Chat with OmniCore AI Assistant.
+
+    Features:
+    - Automatic OmniCore project context injection
+    - Multi-turn conversation support
+    - Knowledge about ontology concepts
+    """
+    import time
+    start_time = time.time()
+
+    # Build conversation prompt
+    messages = request.messages
+
+    # Add OmniCore context if requested
+    if request.include_omnicore_context:
+        system_context = OMNICORE_CONTEXT
+    else:
+        system_context = "You are a helpful AI assistant specializing in ontology and knowledge management."
+
+    # Format conversation
+    conversation = f"{system_context}\n\n"
+    for msg in messages:
+        role = msg.role.capitalize()
+        conversation += f"{role}: {msg.content}\n"
+    conversation += "Assistant:"
+
+    # Generate response
+    client = get_slm_client()
+    slm_request = SLMRequest(
+        prompt=conversation,
+        task_type="chat",
+        max_tokens=request.max_tokens,
+        temperature=request.temperature
+    )
+
+    response = await client.generate(slm_request)
+    latency_ms = (time.time() - start_time) * 1000
+
+    return ChatResponse(
+        response=response.response.strip(),
+        model_used=response.model_used,
+        confidence=response.confidence,
+        tokens_used=response.tokens_used,
+        latency_ms=round(latency_ms, 2)
+    )
+
+
+# =============================================================================
+# Model Management Endpoints
+# =============================================================================
+
+
+@app.get("/models/status", response_model=ModelSetupResponse)
+async def get_model_status():
+    """
+    Get current model availability status.
+    """
+    manager = get_model_manager()
+
+    ollama_available = await manager.check_ollama_available()
+    models = await manager.list_local_models() if ollama_available else []
+    model_names = [m.name for m in models]
+
+    settings = get_settings()
+    primary = settings.slm_model_name if settings.slm_model_name in model_names else None
+    fallback = settings.slm_fallback_model if settings.slm_fallback_model in model_names else None
+
+    ready = primary is not None
+
+    if not ollama_available:
+        message = "Ollama service not running. Please start Ollama first."
+    elif not ready:
+        message = f"Primary model '{settings.slm_model_name}' not found. Use /models/setup to download."
+    else:
+        message = f"Ready with {len(model_names)} model(s) available."
+
+    return ModelSetupResponse(
+        ollama_available=ollama_available,
+        models_available=model_names,
+        primary_model=primary,
+        fallback_model=fallback,
+        ready=ready,
+        message=message
+    )
+
+
+@app.post("/models/setup")
+async def setup_models(background_tasks: BackgroundTasks):
+    """
+    Automatically download required models.
+
+    This endpoint triggers background download of:
+    - Primary model (llama3.2:1b)
+    - Fallback model (gemma2:2b)
+    """
+    manager = get_model_manager()
+
+    if not await manager.check_ollama_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama service not available. Please install and start Ollama first."
+        )
+
+    # Run setup in background
+    async def run_setup():
+        result = await manager.auto_setup()
+        logger.info(f"Model setup completed: {result}")
+
+    background_tasks.add_task(run_setup)
+
+    return {
+        "status": "started",
+        "message": "Model setup started in background. Check /models/status for progress."
+    }
+
+
+@app.post("/models/pull/{model_name}")
+async def pull_model(model_name: str, background_tasks: BackgroundTasks):
+    """
+    Pull a specific model from Ollama registry.
+
+    Examples:
+    - llama3.2:1b
+    - gemma2:2b
+    - mistral:7b
+    - phi3:mini
+    """
+    manager = get_model_manager()
+
+    if not await manager.check_ollama_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama service not available"
+        )
+
+    # Check if already available
+    if await manager.is_model_available(model_name):
+        return {"status": "available", "message": f"Model {model_name} is already downloaded"}
+
+    # Pull in background
+    async def pull_task():
+        success = await manager.pull_model(model_name)
+        logger.info(f"Model pull {model_name}: {'success' if success else 'failed'}")
+
+    background_tasks.add_task(pull_task)
+
+    return {
+        "status": "downloading",
+        "message": f"Downloading {model_name}. This may take several minutes."
+    }
+
+
+@app.delete("/models/{model_name}")
+async def delete_model(model_name: str):
+    """
+    Delete a model from local storage.
+    """
+    manager = get_model_manager()
+    success = await manager.delete_model(model_name)
+
+    if success:
+        return {"status": "deleted", "message": f"Model {model_name} deleted"}
+    else:
+        raise HTTPException(status_code=404, detail=f"Model {model_name} not found or could not be deleted")
 
 
 @app.post("/infer-root-type", response_model=RootTypeInferenceResponse)
@@ -367,7 +640,7 @@ async def enhance_entity(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize on startup"""
+    """Initialize on startup with auto model setup"""
     setup_logging()
     logger.info("SLM Service starting...")
 
@@ -375,6 +648,29 @@ async def startup_event():
     client = get_slm_client()
     status = await client.health_check()
     logger.info(f"SLM Providers: {status}")
+
+    # Auto-setup models if Ollama is available
+    manager = get_model_manager()
+    if await manager.check_ollama_available():
+        logger.info("Ollama available, checking models...")
+
+        # Check if primary model exists, download if not
+        settings = get_settings()
+        if not await manager.is_model_available(settings.slm_model_name):
+            logger.info(f"Primary model {settings.slm_model_name} not found, downloading...")
+            success = await manager.pull_model(settings.slm_model_name)
+            if success:
+                logger.info(f"Successfully downloaded {settings.slm_model_name}")
+            else:
+                logger.warning(f"Failed to download {settings.slm_model_name}")
+        else:
+            logger.info(f"Primary model {settings.slm_model_name} is available")
+
+        # List available models
+        models = await manager.list_local_models()
+        logger.info(f"Available models: {[m.name for m in models]}")
+    else:
+        logger.warning("Ollama not available - AI features will be limited")
 
 
 @app.on_event("shutdown")
