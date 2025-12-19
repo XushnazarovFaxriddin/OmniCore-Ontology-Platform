@@ -1,0 +1,373 @@
+version: "3.8"
+
+# OmniCore Platform v10 - Podman Compose Configuration
+# Deployment Target: PARAM BILIM Supercomputer (AlmaLinux 8.9)
+#
+# Services:
+#   - Redis: Rate limiting and caching
+#   - Roots Service (18001): Entity classification
+#   - Causality Service (18002): Causal relationship inference (GPU)
+#   - Epistemic Service (18003): Epistemic annotations
+#   - MMO Service (18004): Meta-Meta-Ontology metrics
+#   - Global Service (18005): MO merge engine
+#   - SLM Service (18006): Small Language Model inference (GPU)
+#   - API Gateway (container 8000 -> host ${OMNICORE_GATEWAY_HOST_PORT:-18000})
+#   - Dashboard (container 3000 -> host ${OMNICORE_DASHBOARD_HOST_PORT:-13000})
+#   - Ollama (11434): Local LLM server
+
+services:
+  # Redis for rate limiting and SLM caching
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: omnicore-redis
+    hostname: redis
+    # Internal-only (no host port binding) to avoid conflicts on shared hosts
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama - Local LLM Server for SLM
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: omnicore-ollama
+    hostname: ollama
+    # Internal-only (no host port binding). Access via `podman exec` if needed.
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Group A - Roots Service
+  roots-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-roots
+    hostname: roots-service
+    # Rootless Podman: run as container root (maps to host user) to avoid bind-mount permission issues.
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18001:18001"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+    environment:
+      - OMNICORE_SERVICE=roots
+      - OMNICORE_PORT=18001
+      - DATABASE_PATH=/app/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+      - SLM_BASE_URL=http://ollama:11434
+    working_dir: /app
+    command: python -m uvicorn src.core.roots.api:app --host 0.0.0.0 --port 18001
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Group B - Causality Service (GPU 0.25 A100)
+  causality-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-causality
+    hostname: causality-service
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18002:18002"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+    environment:
+      - OMNICORE_SERVICE=causality
+      - OMNICORE_PORT=18002
+      - DATABASE_PATH=/app/data
+      - CUDA_VISIBLE_DEVICES=0
+      - GPU_ENABLED=true
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+      - SLM_BASE_URL=http://ollama:11434
+    working_dir: /app
+    command: python -m uvicorn src.core.causality.api:app --host 0.0.0.0 --port 18002
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0.25
+              capabilities: [gpu]
+
+  # Group C - Epistemic Service
+  epistemic-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-epistemic
+    hostname: epistemic-service
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18003:18003"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+    environment:
+      - OMNICORE_SERVICE=epistemic
+      - OMNICORE_PORT=18003
+      - DATABASE_PATH=/app/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+      - SLM_BASE_URL=http://ollama:11434
+    working_dir: /app
+    command: python -m uvicorn src.core.epistemic.api:app --host 0.0.0.0 --port 18003
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Group D - MMO Service
+  mmo-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-mmo
+    hostname: mmo-service
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18004:18004"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+    environment:
+      - OMNICORE_SERVICE=mmo
+      - OMNICORE_PORT=18004
+      - DATABASE_PATH=/app/data
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+      - SLM_BASE_URL=http://ollama:11434
+    working_dir: /app
+    command: python -m uvicorn src.core.mmo.api:app --host 0.0.0.0 --port 18004
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Group E - Global Ontology Service (MO Core)
+  global-ontology-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-global
+    hostname: global-ontology-service
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 8
+    mem_limit: 16g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18005:18005"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+      - ${OMNICORE_SNAPSHOTS_PATH:-./snapshots}:/app/snapshots:Z
+      - ${OMNICORE_ONTOLOGIES_PATH:-./ontologies}:/app/ontologies:Z
+    environment:
+      - OMNICORE_SERVICE=global
+      - OMNICORE_PORT=18005
+      - DATABASE_PATH=/app/data
+      - ROOTS_SERVICE_URL=http://roots-service:18001
+      - CAUSALITY_SERVICE_URL=http://causality-service:18002
+      - EPISTEMIC_SERVICE_URL=http://epistemic-service:18003
+      - MMO_SERVICE_URL=http://mmo-service:18004
+      - SLM_SERVICE_URL=http://slm-service:18006
+      - SLM_BASE_URL=http://ollama:11434
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /app
+    command: python -m uvicorn src.core.global_srv.api:app --host 0.0.0.0 --port 18005
+    depends_on:
+      roots-service:
+        condition: service_healthy
+      causality-service:
+        condition: service_healthy
+      epistemic-service:
+        condition: service_healthy
+      mmo-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # SLM Service - Small Language Model (GPU 0.25 A100)
+  slm-service:
+    image: localhost/omnicore:v10
+    container_name: omnicore-slm
+    hostname: slm-service
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 8
+    mem_limit: 32g
+    ports:
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:18006:18006"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+      - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface:Z
+    environment:
+      - OMNICORE_SERVICE=slm
+      - OMNICORE_PORT=18006
+      - SLM_BASE_URL=http://ollama:11434
+      - SLM_MODEL_NAME=llama3.2:1b
+      - SLM_FALLBACK_MODEL=gemma2:2b
+      - SLM_CONFIDENCE_THRESHOLD=0.6
+      - GPU_ENABLED=true
+      - CUDA_VISIBLE_DEVICES=0
+      - HUGGINGFACE_TOKEN=${HF_TOKEN:-}
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /app
+    command: python -m uvicorn src.ai.slm.api:app --host 0.0.0.0 --port 18006
+    depends_on:
+      ollama:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0.25
+              capabilities: [gpu]
+
+  # Group F - API Gateway
+  api-gateway:
+    image: localhost/omnicore:v10
+    container_name: omnicore-gateway
+    hostname: api-gateway
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 4
+    mem_limit: 8g
+    ports:
+      # Expose publicly for VPN access (override in .env if needed)
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:${OMNICORE_GATEWAY_HOST_PORT:-18000}:8000"
+    volumes:
+      - ${OMNICORE_DATA_PATH:-./data}:/app/data:Z
+      - ${OMNICORE_LOGS_PATH:-./logs}:/app/logs:Z
+    environment:
+      - OMNICORE_SERVICE=gateway
+      - OMNICORE_PORT=8000
+      - ROOTS_SERVICE_URL=http://roots-service:18001
+      - CAUSALITY_SERVICE_URL=http://causality-service:18002
+      - EPISTEMIC_SERVICE_URL=http://epistemic-service:18003
+      - MMO_SERVICE_URL=http://mmo-service:18004
+      - GLOBAL_SERVICE_URL=http://global-ontology-service:18005
+      - SLM_SERVICE_URL=http://slm-service:18006
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-omnicore-v10-secret-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW=60
+      - OMNICORE_LOG_LEVEL=INFO
+      - OMNICORE_ENV=production
+    working_dir: /app
+    command: python -m uvicorn src.core.gateway.api:app --host 0.0.0.0 --port 8000
+    depends_on:
+      redis:
+        condition: service_healthy
+      global-ontology-service:
+        condition: service_healthy
+      slm-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Group G - React Dashboard
+  dashboard-ui:
+    image: node:20-alpine
+    container_name: omnicore-ui
+    hostname: dashboard-ui
+    user: "${OMNICORE_CONTAINER_USER:-0:0}"
+    cpus: 2
+    mem_limit: 4g
+    ports:
+      # Expose publicly for VPN access (override in .env if needed)
+      - "${OMNICORE_BIND_ADDR:-0.0.0.0}:${OMNICORE_DASHBOARD_HOST_PORT:-13000}:3000"
+    volumes:
+      - ./src/frontend/omnicloud-ui:/app:Z
+      - dashboard-node-modules:/app/node_modules
+    environment:
+      - NODE_ENV=development
+      # Keep browser calls same-origin (/api), Vite proxies to the gateway container
+      - VITE_API_BASE_URL=/api
+      - VITE_PROXY_TARGET=http://api-gateway:8000
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000 --strictPort"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  ollama-data:
+  dashboard-node-modules:
+
+networks:
+  default:
+    name: omnicore-network
