@@ -101,12 +101,34 @@ wait_for_http() {
   done
 }
 
+wait_for_any_http() {
+  local url="$1"
+  local seconds="${2:-60}"
+  local start
+  start="$(date +%s)"
+  while true; do
+    if curl -sS --max-time 2 "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    if (( "$(date +%s)" - start >= seconds )); then
+      return 1
+    fi
+    sleep 2
+  done
+}
+
 case "$ACTION" in
   up|deploy)
     require_cmd podman
     require_cmd podman-compose
     require_cmd curl
     load_env
+
+    if [[ ! -f "$PROJECT_ROOT/src/frontend/omnicloud-ui/package.json" ]]; then
+      echo "Frontend not found at: $PROJECT_ROOT/src/frontend/omnicloud-ui/package.json" >&2
+      echo "Make sure you cloned the full repo (including the dashboard) before deploying." >&2
+      exit 1
+    fi
 
     echo "[1/4] Building backend image (localhost/omnicore:v10)..."
     if [[ "$NO_BUILD" -eq 0 ]]; then
@@ -130,6 +152,13 @@ case "$ACTION" in
       echo ""
       podman logs --tail "$TAIL_LINES" omnicore-gateway || true
       exit 1
+    fi
+
+    if wait_for_any_http "http://127.0.0.1:${OMNICORE_DASHBOARD_HOST_PORT}" 120; then
+      echo "Dashboard is reachable."
+    else
+      echo "Dashboard is not reachable yet. Check UI logs:"
+      podman logs --tail "$TAIL_LINES" omnicore-ui || true
     fi
 
     podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"

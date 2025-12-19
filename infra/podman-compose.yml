@@ -336,7 +336,8 @@ services:
       # Expose publicly for VPN access (override in .env if needed)
       - "${OMNICORE_BIND_ADDR:-0.0.0.0}:${OMNICORE_DASHBOARD_HOST_PORT:-13000}:3000"
     volumes:
-      - ./src/frontend/omnicloud-ui:/app:Z
+      # NOTE: this compose file lives in `infra/`, so relative paths must use `../`.
+      - ../src/frontend/omnicloud-ui:/app:Z
       - dashboard-node-modules:/app/node_modules
     environment:
       - NODE_ENV=development

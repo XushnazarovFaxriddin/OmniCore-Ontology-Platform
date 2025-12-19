@@ -93,12 +93,12 @@ Then open:
 
 ## Troubleshooting
 
-- See what’s listening:
+- See what's listening:
   - `ss -ltnp | egrep ':18000|:13000|:18001|:18006'`
 - Logs:
   - `podman logs --tail 200 omnicore-roots`
   - `podman logs --tail 200 omnicore-global`
   - `podman logs --tail 200 omnicore-gateway`
   - `podman logs --tail 200 omnicore-ui`
-- If you see “Resource limits are not supported…”: it’s a cgroups v1 rootless warning; safe to ignore (or switch host to cgroups v2).
-
+- If `omnicore-ui` logs show `Could not read package.json` (`/app/package.json`): the dashboard folder wasn't mounted. In `infra/podman-compose.yml` the volume must be `../src/frontend/omnicloud-ui:/app:Z`, then redeploy (`bash scripts/publish-podman.sh restart`).
+- If you see "Resource limits are not supported...": it's a cgroups v1 rootless warning; safe to ignore (or switch host to cgroups v2).

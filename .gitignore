@@ -21,3 +21,5 @@ dist/
 .venv/
 .pytest_cache/
 venv/
+
+.vite/
