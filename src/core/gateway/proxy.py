@@ -37,6 +37,7 @@ class ServiceProxy:
             "epistemic": _localize(settings.epistemic_service_url, settings.epistemic_service_port),
             "mmo": _localize(settings.mmo_service_url, settings.mmo_service_port),
             "global": _localize(settings.global_service_url, settings.global_service_port),
+            "slm": _localize(settings.slm_service_url, settings.slm_service_port),
         }
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -136,6 +137,7 @@ class ServiceProxy:
             "epistemic": "Epistemic Service",
             "mmo": "MMO Service",
             "global": "Global Ontology Service",
+            "slm": "SLM Service",
         }
 
         try:

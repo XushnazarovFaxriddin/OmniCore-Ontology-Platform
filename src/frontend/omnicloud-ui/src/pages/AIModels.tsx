@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { aiApi, globalApi } from '../api/client';
-import type { AIModel } from '../types';
+import type { AIModel, ModelSetupStatus, SLMHealth } from '../types';
 
 interface ModelUsageStats {
   total_requests: number;
@@ -13,7 +13,8 @@ interface ModelUsageStats {
 
 function AIModels() {
   const [models, setModels] = useState<AIModel[]>([]);
-  const [health, setHealth] = useState<{ status: string; providers: Record<string, boolean> } | null>(null);
+  const [health, setHealth] = useState<SLMHealth | null>(null);
+  const [modelStatus, setModelStatus] = useState<ModelSetupStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -21,6 +22,8 @@ function AIModels() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testMetrics, setTestMetrics] = useState<{ latency: number; tokens: number } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSettingUp, setIsSettingUp] = useState(false);
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
 
   // Strategic Plan State
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -49,16 +52,61 @@ function AIModels() {
     setIsLoading(true);
     setError(null);
     try {
-      const [healthData, modelsData] = await Promise.all([
+      const [healthData, statusData] = await Promise.all([
         aiApi.getHealth().catch(() => ({ status: 'unknown', providers: {} })),
-        aiApi.listModels().catch(() => []),
+        aiApi.getModelStatus().catch(() => null),
       ]);
       setHealth(healthData);
-      setModels(Array.isArray(modelsData) ? modelsData : []);
+      setModelStatus(statusData);
+
+      if (statusData?.ollama_available && Array.isArray(statusData.models_available)) {
+        setModels(
+          statusData.models_available.map((modelName) => ({
+            id: modelName,
+            name: modelName,
+            provider: 'Ollama',
+            status: 'available',
+            capabilities: ['text-generation', 'analysis', 'reasoning'],
+          }))
+        );
+      } else {
+        setModels([]);
+      }
     } catch (err) {
       setError('Failed to load AI service data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSetupModels = async () => {
+    setIsSettingUp(true);
+    setSetupMessage(null);
+    setError(null);
+
+    try {
+      const result = await aiApi.setupModels();
+      setSetupMessage(result.message || 'Model setup started.');
+
+      const statusData = await aiApi.getModelStatus().catch(() => null);
+      setModelStatus(statusData);
+
+      if (statusData?.ollama_available && Array.isArray(statusData.models_available)) {
+        setModels(
+          statusData.models_available.map((modelName) => ({
+            id: modelName,
+            name: modelName,
+            provider: 'Ollama',
+            status: 'available',
+            capabilities: ['text-generation', 'analysis', 'reasoning'],
+          }))
+        );
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || err?.message;
+      setError(detail ? `Failed to start model setup: ${detail}` : 'Failed to start model setup');
+    } finally {
+      setIsSettingUp(false);
     }
   };
 
@@ -80,7 +128,7 @@ function AIModels() {
       setTestResult(response.response);
       setTestMetrics({ latency, tokens: response.tokens_used });
     } catch (err) {
-      setTestResult('Error: Model unavailable. Please ensure Ollama is running with: ollama serve');
+      setTestResult('Error: Model unavailable. Check /ai/models → Setup Models (or run: ollama serve)');
     } finally {
       setIsTesting(false);
     }
@@ -115,22 +163,22 @@ function AIModels() {
 
   const defaultModels: AIModel[] = [
     {
-      id: 'ollama-llama3.2',
-      name: 'Llama 3.2 (3B)',
+      id: 'llama3.2:1b',
+      name: 'llama3.2:1b',
       provider: 'Ollama',
       status: health?.providers?.ollama ? 'available' : 'unavailable',
       capabilities: ['text-generation', 'analysis', 'reasoning', 'classification'],
     },
     {
-      id: 'ollama-mistral',
-      name: 'Mistral 7B',
+      id: 'mistral:7b',
+      name: 'mistral:7b',
       provider: 'Ollama',
       status: health?.providers?.ollama ? 'available' : 'unavailable',
       capabilities: ['text-generation', 'code', 'analysis'],
     },
     {
-      id: 'ollama-phi3',
-      name: 'Phi-3 Mini',
+      id: 'phi3:mini',
+      name: 'phi3:mini',
       provider: 'Ollama',
       status: health?.providers?.ollama ? 'available' : 'unavailable',
       capabilities: ['text-generation', 'reasoning', 'math'],
@@ -152,6 +200,9 @@ function AIModels() {
   ];
 
   const displayModels = models.length > 0 ? models : defaultModels;
+  const needsSetup = modelStatus
+    ? !modelStatus.primary_model || !modelStatus.fallback_model
+    : health?.status !== 'healthy';
 
   if (isLoading) {
     return (
@@ -177,6 +228,14 @@ function AIModels() {
           >
             {isGeneratingPlan ? 'Generating...' : 'Strategic Plan'}
           </button>
+          <button
+            className="btn-secondary"
+            onClick={handleSetupModels}
+            disabled={isSettingUp || modelStatus?.ollama_available === false}
+            title="Calls POST /api/slm/models/setup"
+          >
+            {isSettingUp ? 'Setting up...' : 'Setup Models'}
+          </button>
           <button className="btn-primary" onClick={loadData}>
             Refresh
           </button>
@@ -191,13 +250,33 @@ function AIModels() {
       )}
 
       {/* Setup Instructions */}
-      {health?.status !== 'healthy' && (
+      {needsSetup && (
         <div className="setup-banner">
-          <h3>Quick Setup</h3>
-          <p>To use AI features, start Ollama locally:</p>
-          <code>ollama serve</code>
-          <p>Then pull a model:</p>
-          <code>ollama pull llama3.2</code>
+          <h3>Model Setup</h3>
+          <p>
+            {modelStatus?.message || 'To use AI features, Ollama must be running and required models must be available.'}
+            {modelStatus?.ollama_available && !modelStatus?.fallback_model ? ' Fallback model is missing.' : ''}
+          </p>
+
+          {!modelStatus?.ollama_available ? (
+            <>
+              <p>Start Ollama locally:</p>
+              <code>ollama serve</code>
+            </>
+          ) : (
+            <>
+              <p>Download required models via API:</p>
+              <button
+                className="btn-primary"
+                onClick={handleSetupModels}
+                disabled={isSettingUp}
+                title="Calls POST /api/slm/models/setup"
+              >
+                {isSettingUp ? 'Setting up...' : 'Setup Models'}
+              </button>
+              {setupMessage && <p className="setup-message">{setupMessage}</p>}
+            </>
+          )}
         </div>
       )}
 
@@ -528,6 +607,11 @@ function AIModels() {
         .setup-banner p {
           margin: 0.5rem 0;
           opacity: 0.9;
+        }
+
+        .setup-message {
+          margin-top: 0.75rem;
+          opacity: 0.95;
         }
 
         .setup-banner code {

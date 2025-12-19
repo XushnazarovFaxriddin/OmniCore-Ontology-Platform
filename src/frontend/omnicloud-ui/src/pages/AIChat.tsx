@@ -108,7 +108,7 @@ function AIChat() {
         content: response.response,
         timestamp: new Date().toISOString(),
         metadata: {
-          model: response.model_id,
+          model: response.model_used,
           confidence: response.confidence,
           tokens: response.tokens_used,
           latency: response.latency_ms,

@@ -9,7 +9,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\causa
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\epistemic; python -m uvicorn api:app --port 18003 --reload"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\mmo; python -m uvicorn api:app --port 18004 --reload"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\global_srv; python -m uvicorn api:app --port 18005 --reload"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\gateway; python -m uvicorn api:app --port 8000 --reload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\core\gateway; python -m uvicorn api:app --port 18000 --reload"
 
 # Start frontend
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd src\frontend\omnicloud-ui; npm run dev"

@@ -12,6 +12,7 @@ from datetime import datetime
 import httpx
 from functools import lru_cache
 from abc import ABC, abstractmethod
+from urllib.parse import urlparse
 
 from common.config import Settings, get_settings, SLMProvider
 from common.logging_config import get_logger
@@ -46,7 +47,7 @@ class OllamaClient(BaseSLMClient):
     """
 
     def __init__(self, settings: Settings):
-        self.base_url = settings.slm_base_url
+        self.base_url = self._normalize_base_url(settings.slm_base_url)
         self.model = settings.slm_model_name
         self.fallback_model = settings.slm_fallback_model
         self.max_tokens = settings.slm_max_tokens
@@ -56,6 +57,49 @@ class OllamaClient(BaseSLMClient):
         self.enable_caching = settings.slm_enable_caching
         self.cache_ttl = settings.slm_cache_ttl
         self._cache: Dict[str, tuple] = {}  # (response, timestamp)
+
+    def _normalize_base_url(self, base_url: str) -> str:
+        base_url = (base_url or "").strip().rstrip("/")
+        if not base_url:
+            return "http://localhost:11434"
+
+        # Ensure scheme so urlparse can extract hostname/port.
+        if "://" not in base_url:
+            base_url = f"http://{base_url}"
+
+        try:
+            parsed = urlparse(base_url)
+            host = (parsed.hostname or "").lower()
+            scheme = parsed.scheme or "http"
+            port = parsed.port or (443 if scheme == "https" else 80)
+
+            # `0.0.0.0` is a bind address; map it to loopback for client requests.
+            if host in {"0.0.0.0", "::"}:
+                return f"{scheme}://127.0.0.1:{port}"
+        except Exception:
+            pass
+
+        return base_url.rstrip("/")
+
+    def _candidate_base_urls(self) -> List[str]:
+        base_url = self._normalize_base_url(self.base_url)
+        candidates = [base_url]
+        try:
+            parsed = urlparse(base_url)
+            host = (parsed.hostname or "").lower()
+            scheme = parsed.scheme or "http"
+            port = parsed.port or (443 if scheme == "https" else 80)
+            if host == "localhost":
+                candidates.append(f"{scheme}://127.0.0.1:{port}")
+        except Exception:
+            pass
+        # De-dup while preserving order
+        seen: List[str] = []
+        for url in candidates:
+            url = url.rstrip("/")
+            if url not in seen:
+                seen.append(url)
+        return seen
 
     def _get_cache_key(self, request: SLMRequest) -> str:
         """Generate cache key from request"""
@@ -168,23 +212,34 @@ class OllamaClient(BaseSLMClient):
 
     async def health_check(self) -> bool:
         """Check if Ollama is available"""
-        try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-                return response.status_code == 200
-        except Exception:
-            return False
+        for base_url in self._candidate_base_urls():
+            try:
+                # Keep health checks fast so service readiness doesn't stall when Ollama is down.
+                async with httpx.AsyncClient(timeout=1.0) as client:
+                    response = await client.get(f"{base_url}/api/tags")
+                    if response.status_code == 200:
+                        self.base_url = base_url.rstrip("/")
+                        return True
+            except Exception:
+                continue
+        return False
 
     async def list_models(self) -> List[str]:
         """List available Ollama models"""
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-                if response.status_code == 200:
-                    data = response.json()
-                    return [m["name"] for m in data.get("models", [])]
-        except Exception as e:
-            logger.error(f"Failed to list models: {e}")
+        last_error: Optional[Exception] = None
+        for base_url in self._candidate_base_urls():
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    response = await client.get(f"{base_url}/api/tags")
+                    if response.status_code == 200:
+                        self.base_url = base_url.rstrip("/")
+                        data = response.json()
+                        return [m["name"] for m in data.get("models", [])]
+            except Exception as e:
+                last_error = e
+
+        if last_error is not None:
+            logger.error(f"Failed to list models: {last_error}")
         return []
 
     async def pull_model(self, model_name: str) -> bool:
@@ -453,12 +508,27 @@ class SLMClient:
             cached=False
         )
 
-    async def health_check(self) -> Dict[str, bool]:
-        """Check health of all providers"""
-        results = {}
-        for provider, client in self._clients.items():
-            results[provider.value] = await client.health_check()
-        return results
+    async def health_check(self, timeout_seconds: float = 1.0) -> Dict[str, bool]:
+        """
+        Check health of all configured providers.
+
+        Args:
+            timeout_seconds: Per-provider timeout. Keep small so /health stays responsive.
+        """
+
+        async def check_one(provider: SLMProvider, client: BaseSLMClient) -> tuple[str, bool]:
+            try:
+                if timeout_seconds and timeout_seconds > 0:
+                    ok = await asyncio.wait_for(client.health_check(), timeout=timeout_seconds)
+                else:
+                    ok = await client.health_check()
+                return provider.value, bool(ok)
+            except Exception:
+                return provider.value, False
+
+        checks = [check_one(provider, client) for provider, client in self._clients.items()]
+        results = await asyncio.gather(*checks)
+        return dict(results)
 
     async def list_models(self) -> Dict[str, List[str]]:
         """List models from all providers"""

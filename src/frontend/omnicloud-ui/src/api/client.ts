@@ -22,13 +22,14 @@ import type {
   PaginatedResponse,
   SLMRequest,
   SLMResponse,
+  ModelSetupStatus,
+  ModelSetupStartResponse,
   RootTypeInference,
   EpistemicAnnotationResult,
   ConflictResolution,
   QualityAssessment,
   StrategicPlan,
   EntityEnhancement,
-  AIModel,
   ConflictType,
 } from '../types';
 
@@ -348,12 +349,36 @@ slmApi.interceptors.request.use((config) => {
 export const aiApi = {
   // Health & Models
   getHealth: async () => {
-    const response = await slmApi.get<{ status: string; providers: Record<string, boolean> }>('/health');
-    return response.data;
+    const response = await slmApi.get<any>('/health');
+    const providers = response.data?.details?.providers ?? response.data?.providers ?? {};
+    return { status: response.data?.status ?? 'unknown', providers };
   },
 
   listModels: async () => {
-    const response = await slmApi.get<AIModel[]>('/models');
+    // Prefer backend model status endpoint (stable shape) and map to UI-friendly list.
+    const response = await slmApi.get<ModelSetupStatus>('/models/status');
+    const status = response.data;
+
+    if (!status?.ollama_available || !Array.isArray(status.models_available)) {
+      return [];
+    }
+
+    return status.models_available.map((modelName) => ({
+      id: modelName,          // Use actual model name so it can be passed back to /generate
+      name: modelName,
+      provider: 'Ollama',
+      status: 'available',
+      capabilities: ['text-generation', 'analysis', 'reasoning'],
+    }));
+  },
+
+  getModelStatus: async () => {
+    const response = await slmApi.get<ModelSetupStatus>('/models/status');
+    return response.data;
+  },
+
+  setupModels: async () => {
+    const response = await slmApi.post<ModelSetupStartResponse>('/models/setup');
     return response.data;
   },
 
@@ -484,6 +509,7 @@ export const aiApi = {
 
   // Smart Search - AI-powered semantic search
   smartSearch: async (query: string, entityTypes?: string[], limit?: number) => {
+    const resultLimit = limit ?? 10;
     const response = await slmApi.post<SLMResponse>('/generate', {
       prompt: `Analyze this search query and identify relevant ontology concepts:
 Query: "${query}"
@@ -491,7 +517,7 @@ ${entityTypes ? `Filter to types: ${entityTypes.join(', ')}` : ''}
 
 Respond with JSON containing:
 - interpreted_query: what the user is looking for
-- suggested_entities: list of entity names that might match
+- suggested_entities: list of entity names that might match (max ${resultLimit})
 - related_concepts: related ontological concepts
 - search_tips: suggestions for refining the search`,
       task_type: 'general',

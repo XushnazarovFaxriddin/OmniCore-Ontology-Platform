@@ -223,10 +223,31 @@ export interface SLMRequest {
 
 export interface SLMResponse {
   response: string;
-  model_id: string;
+  model_used: string;
   confidence: number;
+  rationale?: string;
   tokens_used: number;
   latency_ms: number;
+  cached?: boolean;
+}
+
+export interface SLMHealth {
+  status: string;
+  providers: Record<string, boolean>;
+}
+
+export interface ModelSetupStatus {
+  ollama_available: boolean;
+  models_available: string[];
+  primary_model: string | null;
+  fallback_model: string | null;
+  ready: boolean;
+  message: string;
+}
+
+export interface ModelSetupStartResponse {
+  status: string;
+  message: string;
 }
 
 export interface RootTypeInference {

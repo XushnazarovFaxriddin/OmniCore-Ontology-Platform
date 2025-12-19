@@ -372,3 +372,41 @@ async def proxy_system_health(request: Request):
         headers=dict(response.headers),
         media_type="application/json",
     )
+
+
+# ==================== SLM Service Routes ====================
+
+@router.api_route(
+    "/slm{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    tags=["SLM"],
+)
+async def proxy_slm(request: Request, path: str = ""):
+    """Proxy requests to the SLM Service (AI)."""
+    proxy = get_proxy(request)
+    full_path = path if path else "/"
+
+    body = None
+    if request.method in ["POST", "PUT", "PATCH"]:
+        try:
+            body = await request.json()
+        except Exception:
+            body = None
+
+    response = await proxy.forward_request(
+        service="slm",
+        method=request.method,
+        path=full_path,
+        headers=dict(request.headers),
+        params=dict(request.query_params),
+        body=body,
+    )
+
+    # Preserve upstream content-type where possible
+    content_type = response.headers.get("content-type", "application/json")
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=dict(response.headers),
+        media_type=content_type.split(";")[0],
+    )

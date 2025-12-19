@@ -10,21 +10,22 @@ Features:
 - Strategic planning, quality assessment
 """
 
+import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from common.config import get_settings, Settings
+from common.config import get_settings
 from common.logging_config import get_logger, setup_logging
 from common.models import (
     SLMRequest, SLMResponse, HealthResponse, HealthStatus,
     RootType, Conflict, ConflictType
 )
-from .client import get_slm_client, SLMClient
+from .client import get_slm_client
 from .service import SLMService
-from .model_manager import get_model_manager, auto_setup_models
+from .model_manager import get_model_manager
 
 logger = get_logger("slm.api")
 
@@ -226,11 +227,12 @@ class ModelSetupResponse(BaseModel):
 async def health_check():
     """Health check endpoint"""
     client = get_slm_client()
-    provider_status = await client.health_check()
+    provider_status = await client.health_check(timeout_seconds=1.0)
 
     # Determine overall status
     any_healthy = any(provider_status.values())
-    status = HealthStatus.HEALTHY if any_healthy else HealthStatus.UNHEALTHY
+    # Service can still run without providers; mark as degraded instead of failing readiness.
+    status = HealthStatus.HEALTHY if any_healthy else HealthStatus.DEGRADED
 
     return HealthResponse(
         status=status,
@@ -641,36 +643,54 @@ async def enhance_entity(
 @app.on_event("startup")
 async def startup_event():
     """Initialize on startup with auto model setup"""
-    setup_logging()
+    setup_logging(service_name="slm-service", level=get_settings().omnicore_log_level)
     logger.info("SLM Service starting...")
 
     # Check provider availability
     client = get_slm_client()
-    status = await client.health_check()
+    status = await client.health_check(timeout_seconds=1.0)
     logger.info(f"SLM Providers: {status}")
 
-    # Auto-setup models if Ollama is available
-    manager = get_model_manager()
-    if await manager.check_ollama_available():
-        logger.info("Ollama available, checking models...")
+    # Bootstrap in background (never block service readiness):
+    # - Best-effort auto-start for local Ollama (Windows dev)
+    # - Check models (without auto-downloading)
+    async def bootstrap_task() -> None:
+        try:
+            manager = get_model_manager()
 
-        # Check if primary model exists, download if not
-        settings = get_settings()
-        if not await manager.is_model_available(settings.slm_model_name):
-            logger.info(f"Primary model {settings.slm_model_name} not found, downloading...")
-            success = await manager.pull_model(settings.slm_model_name)
-            if success:
-                logger.info(f"Successfully downloaded {settings.slm_model_name}")
-            else:
-                logger.warning(f"Failed to download {settings.slm_model_name}")
-        else:
-            logger.info(f"Primary model {settings.slm_model_name} is available")
+            # If Ollama is installed locally but the daemon isn't running yet (common on Windows),
+            # try to start it so users don't have to do it manually.
+            if not status.get("ollama", False):
+                await manager.ensure_local_ollama_running(startup_timeout_s=10.0)
 
-        # List available models
-        models = await manager.list_local_models()
-        logger.info(f"Available models: {[m.name for m in models]}")
-    else:
-        logger.warning("Ollama not available - AI features will be limited")
+            if not await manager.check_ollama_available(log=False):
+                logger.warning(
+                    f"Ollama not available at {get_settings().slm_base_url}. "
+                    "Start it with `ollama serve` (or set `SLM_BASE_URL`) to enable AI features."
+                )
+                return
+
+            refreshed = await get_slm_client().health_check(timeout_seconds=1.0)
+            if refreshed != status:
+                logger.info(f"SLM Providers: {refreshed}")
+
+            logger.info("Ollama available, checking models...")
+            current_settings = get_settings()
+
+            # If models are missing, allow users to trigger downloads via /models/setup.
+            primary = current_settings.slm_model_name
+            fallback = current_settings.slm_fallback_model
+            if not await manager.is_model_available(primary):
+                logger.warning(f"Primary model '{primary}' not found. Use POST /models/setup to download.")
+            if fallback and not await manager.is_model_available(fallback):
+                logger.warning(f"Fallback model '{fallback}' not found. Use POST /models/setup to download.")
+
+            models = await manager.list_local_models()
+            logger.info(f"Available models: {[m.name for m in models]}")
+        except Exception as e:
+            logger.warning(f"SLM bootstrap failed: {e}")
+
+    asyncio.create_task(bootstrap_task())
 
 
 @app.on_event("shutdown")
