@@ -111,7 +111,7 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
               │                                       │
     ┌─────────────────┐                    ┌─────────────────┐
     │ React Dashboard │                    │   CLI / SDK     │
-    │     (:3000)     │                    │    omnicore     │
+    │     (:13000)    │                    │    omnicore     │
     └─────────────────┘                    └─────────────────┘
 ```
 
@@ -126,7 +126,7 @@ OmniCore is the world's first **self-evolving meta-ontological platform** that:
 | MMO | 18004 | - | Quality metrics |
 | Global | 18005 | - | MO core engine |
 | SLM | 18006 | 0.25 A100 | Language model inference |
-| Dashboard | 3000 | - | Web UI |
+| Dashboard | 13000 | - | Web UI |
 | Ollama | 11434 | 1 GPU | Local LLM server |
 
 ---
