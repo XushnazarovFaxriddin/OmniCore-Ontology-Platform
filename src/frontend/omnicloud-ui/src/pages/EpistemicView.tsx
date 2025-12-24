@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { epistemicApi } from '../api/client';
+import { epistemicApi, rootsApi } from '../api/client';
 import Loading from '../components/common/Loading';
 import ErrorMessage from '../components/common/ErrorMessage';
-import type { EpistemicAnnotation, EpistemicAnnotationCreate, EpistemicBasis } from '../types';
+import EntitySelect from '../components/common/EntitySelect';
+import type { EpistemicAnnotation, EpistemicAnnotationCreate, EpistemicBasis, Root } from '../types';
 
 const EPISTEMIC_BASES: EpistemicBasis[] = ['axiomatic', 'empirical', 'consensus', 'speculative'];
 
@@ -38,6 +39,20 @@ function EpistemicView() {
     queryKey: ['epistemicSummary'],
     queryFn: epistemicApi.getSummary,
   });
+
+  const { data: rootsData } = useQuery({
+    queryKey: ['roots', 'entity-select'],
+    queryFn: () => rootsApi.list(0, 1000),
+    staleTime: 30_000,
+  });
+
+  const rootsById = useMemo(() => {
+    const map = new Map<string, Root>();
+    for (const root of rootsData?.items ?? []) {
+      map.set(root.id, root);
+    }
+    return map;
+  }, [rootsData]);
 
   const createMutation = useMutation({
     mutationFn: epistemicApi.create,
@@ -155,8 +170,12 @@ function EpistemicView() {
             <tbody>
               {data?.items.map((annotation: EpistemicAnnotation) => (
                 <tr key={annotation.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                    {annotation.entity_id.slice(0, 8)}...
+                  <td>
+                    {rootsById.get(annotation.entity_id)?.name ?? (
+                      <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        {annotation.entity_id.slice(0, 8)}...
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -241,13 +260,11 @@ function EpistemicView() {
               </button>
             </div>
             <div className="form-group">
-              <label className="form-label">Entity ID</label>
-              <input
-                type="text"
-                className="form-input"
+              <label className="form-label">Entity</label>
+              <EntitySelect
                 value={newAnnotation.entity_id}
-                onChange={(e) => setNewAnnotation({ ...newAnnotation, entity_id: e.target.value })}
-                placeholder="Enter entity ID"
+                onChange={(entityId) => setNewAnnotation({ ...newAnnotation, entity_id: entityId })}
+                placeholder="Select entity…"
               />
             </div>
             <div className="form-group">

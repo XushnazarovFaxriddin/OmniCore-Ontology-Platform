@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { causalityApi } from '../api/client';
+import { causalityApi, rootsApi } from '../api/client';
 import Loading from '../components/common/Loading';
 import ErrorMessage from '../components/common/ErrorMessage';
-import type { CausalityLink, CausalityLinkCreate, CausalityType } from '../types';
+import EntitySelect from '../components/common/EntitySelect';
+import type { CausalityLink, CausalityLinkCreate, CausalityType, Root } from '../types';
 
 const CAUSALITY_TYPES: CausalityType[] = ['EFFICIENT', 'FINAL', 'MATERIAL', 'FORMAL', 'EMERGENT'];
 
@@ -39,6 +40,20 @@ function CausalityView() {
     queryKey: ['causalitySummary'],
     queryFn: causalityApi.getSummary,
   });
+
+  const { data: rootsData } = useQuery({
+    queryKey: ['roots', 'entity-select'],
+    queryFn: () => rootsApi.list(0, 1000),
+    staleTime: 30_000,
+  });
+
+  const rootsById = useMemo(() => {
+    const map = new Map<string, Root>();
+    for (const root of rootsData?.items ?? []) {
+      map.set(root.id, root);
+    }
+    return map;
+  }, [rootsData]);
 
   const createMutation = useMutation({
     mutationFn: causalityApi.create,
@@ -148,11 +163,19 @@ function CausalityView() {
             <tbody>
               {data?.items.map((link: CausalityLink) => (
                 <tr key={link.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                    {link.source_entity_id.slice(0, 8)}...
+                  <td>
+                    {rootsById.get(link.source_entity_id)?.name ?? (
+                      <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        {link.source_entity_id.slice(0, 8)}...
+                      </span>
+                    )}
                   </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                    {link.target_entity_id.slice(0, 8)}...
+                  <td>
+                    {rootsById.get(link.target_entity_id)?.name ?? (
+                      <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        {link.target_entity_id.slice(0, 8)}...
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span className={`badge ${CAUSALITY_TYPE_COLORS[link.causality_type]}`}>
@@ -215,23 +238,19 @@ function CausalityView() {
               </button>
             </div>
             <div className="form-group">
-              <label className="form-label">Source Entity ID</label>
-              <input
-                type="text"
-                className="form-input"
+              <label className="form-label">Source Entity</label>
+              <EntitySelect
                 value={newLink.source_entity_id}
-                onChange={(e) => setNewLink({ ...newLink, source_entity_id: e.target.value })}
-                placeholder="Enter source entity ID"
+                onChange={(entityId) => setNewLink({ ...newLink, source_entity_id: entityId })}
+                placeholder="Select source entity…"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Target Entity ID</label>
-              <input
-                type="text"
-                className="form-input"
+              <label className="form-label">Target Entity</label>
+              <EntitySelect
                 value={newLink.target_entity_id}
-                onChange={(e) => setNewLink({ ...newLink, target_entity_id: e.target.value })}
-                placeholder="Enter target entity ID"
+                onChange={(entityId) => setNewLink({ ...newLink, target_entity_id: entityId })}
+                placeholder="Select target entity…"
               />
             </div>
             <div className="form-group">

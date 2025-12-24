@@ -165,6 +165,15 @@ case "$ACTION" in
     print_endpoints
     ;;
 
+  repair|fix)
+    require_cmd podman
+    echo "[1/2] Running: podman system migrate"
+    podman system migrate || true
+    echo "[2/2] Running: podman system renumber"
+    podman system renumber || true
+    echo "Done."
+    ;;
+
   down|stop)
     require_cmd podman-compose
     load_env
@@ -192,12 +201,13 @@ case "$ACTION" in
     ;;
 
   *)
-    echo "Usage: $0 [up|deploy|down|stop|restart|status|logs] [--no-build] [--tail N]"
+    echo "Usage: $0 [up|deploy|down|stop|restart|status|logs|repair] [--no-build] [--tail N]"
     echo ""
     echo "Examples:"
     echo "  $0 up"
     echo "  $0 up --no-build"
     echo "  $0 logs omnicore-gateway --tail 200"
+    echo "  $0 repair"
     exit 2
     ;;
 esac

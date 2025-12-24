@@ -8,6 +8,8 @@ const navItems = [
   { path: '/epistemic', label: 'Epistemic', icon: '📚' },
   { path: '/mmo', label: 'MMO Schema', icon: '🔷' },
   { path: '/health', label: 'System Health', icon: '💚' },
+  { path: '/architecture', label: 'Architecture', icon: '🧭' },
+  { path: '/guide', label: 'User Guide', icon: '📘' },
 ];
 
 const aiNavItems = [
