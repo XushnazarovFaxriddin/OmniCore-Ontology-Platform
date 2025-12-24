@@ -91,6 +91,32 @@ Then open:
 - `http://192.168.1.3:18000/docs`
 - `http://192.168.1.3:13000`
 
+## 6) Keep it running (recommended for “production”)
+
+On shared/HPC hosts it’s common for user processes to be killed after logout, or for rootless stacks to not restart after reboots.
+The most reliable pattern is: **enable linger + run the stack from a systemd user service**.
+
+```bash
+# 1) Keep user services running after logout (needs sudo)
+sudo loginctl enable-linger "$USER"
+
+# 2) Install the user service unit into ~/.config/systemd/user/
+bash scripts/install-omnicore-systemd-user.sh install
+
+# 3) Enable/start it
+systemctl --user daemon-reload
+systemctl --user enable --now omnicore.service
+
+# 4) Check status
+systemctl --user status omnicore.service
+```
+
+If your Podman build supports it, also enable automatic restart handling for containers with restart policies:
+
+```bash
+systemctl --user enable --now podman-restart.service || true
+```
+
 ## Troubleshooting
 
 - See what's listening:
@@ -102,3 +128,42 @@ Then open:
   - `podman logs --tail 200 omnicore-ui`
 - If `omnicore-ui` logs show `Could not read package.json` (`/app/package.json`): the dashboard folder wasn't mounted. In `infra/podman-compose.yml` the volume must be `../src/frontend/omnicloud-ui:/app:Z`, then redeploy (`bash scripts/publish-podman.sh restart`).
 - If you see "Resource limits are not supported...": it's a cgroups v1 rootless warning; safe to ignore (or switch host to cgroups v2).
+
+### Podman lock errors: `acquiring lock ...: file exists`
+
+If `podman ps` prints many errors like:
+
+```
+acquiring lock 2 for container ...: file exists
+```
+
+Try:
+
+```bash
+bash scripts/publish-podman.sh repair
+```
+
+Then redeploy:
+
+```bash
+bash scripts/publish-podman.sh up --no-build
+```
+
+If it still happens frequently on your server, it’s often caused by running rootless Podman state on a network home (NFS/Lustre)
+or by user processes being killed abruptly. Two high-impact mitigations:
+
+1) Use the systemd user service section above (linger + systemd).
+2) Move Podman storage to a local disk (example):
+
+```bash
+mkdir -p /mnt/extra/$USER/podman/{run,graph}
+mkdir -p ~/.config/containers
+cat > ~/.config/containers/storage.conf <<EOF
+[storage]
+driver = "overlay"
+runroot = "/mnt/extra/$USER/podman/run"
+graphroot = "/mnt/extra/$USER/podman/graph"
+EOF
+```
+
+After changing storage, you must redeploy (images/containers will be recreated in the new storage path).

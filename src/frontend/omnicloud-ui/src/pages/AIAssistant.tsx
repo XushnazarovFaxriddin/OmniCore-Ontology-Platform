@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { aiApi } from '../api/client';
+import EntitySelect from '../components/common/EntitySelect';
 import type { RootType, EpistemicBasis, ConflictType } from '../types';
 
 type TabType = 'root-inference' | 'causality' | 'epistemic' | 'conflict' | 'enhancement' | 'quality';
@@ -524,12 +525,18 @@ function AIAssistant() {
             <p>Enrich existing entities with AI-derived insights and metadata.</p>
 
             <div className="form-group">
-              <label>Entity ID (optional)</label>
-              <input
-                type="text"
+              <label>Select Existing Entity (optional)</label>
+              <EntitySelect
                 value={enhanceEntityId}
-                onChange={(e) => setEnhanceEntityId(e.target.value)}
-                placeholder="e.g., entity-12345"
+                onChange={(entityId, entity) => {
+                  setEnhanceEntityId(entityId);
+                  if (entity) {
+                    setEnhanceEntityName(entity.name);
+                    setEnhanceDescription(entity.description ?? '');
+                  }
+                }}
+                placeholder="Pick an entity from Roots…"
+                searchPlaceholder="Search roots…"
               />
             </div>
 
