@@ -74,6 +74,38 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1" >&2; exit 1; }
 }
 
+podman_compose_bin() {
+  if [[ -n "${PODMAN_COMPOSE_BIN:-}" ]]; then
+    if [[ -x "$PODMAN_COMPOSE_BIN" ]]; then
+      echo "$PODMAN_COMPOSE_BIN"
+      return 0
+    fi
+    echo "PODMAN_COMPOSE_BIN is set but not executable: $PODMAN_COMPOSE_BIN" >&2
+    exit 1
+  fi
+
+  # Prefer a user-installed podman-compose (often Python 3.11+) to avoid the AlmaLinux default python3.6.
+  if [[ -x "$HOME/.local/bin/podman-compose" ]]; then
+    echo "$HOME/.local/bin/podman-compose"
+    return 0
+  fi
+
+  if command -v podman-compose >/dev/null 2>&1; then
+    command -v podman-compose
+    return 0
+  fi
+
+  echo "Missing required command: podman-compose" >&2
+  echo "Install (recommended): python3.11 -m pip install --user --upgrade podman-compose" >&2
+  exit 1
+}
+
+podman_compose() {
+  local bin
+  bin="$(podman_compose_bin)"
+  "$bin" "$@"
+}
+
 print_endpoints() {
   echo ""
   echo "Local endpoints:"
@@ -120,9 +152,10 @@ wait_for_any_http() {
 case "$ACTION" in
   up|deploy)
     require_cmd podman
-    require_cmd podman-compose
     require_cmd curl
     load_env
+    PODMAN_COMPOSE_BIN="$(podman_compose_bin)"
+    export PODMAN_COMPOSE_BIN
 
     if [[ ! -f "$PROJECT_ROOT/src/frontend/omnicloud-ui/package.json" ]]; then
       echo "Frontend not found at: $PROJECT_ROOT/src/frontend/omnicloud-ui/package.json" >&2
@@ -138,10 +171,10 @@ case "$ACTION" in
     fi
 
     echo "[2/4] Stopping existing stack (if any)..."
-    podman-compose -f "$COMPOSE_FILE" down --remove-orphans || true
+    podman_compose -f "$COMPOSE_FILE" down --remove-orphans || true
 
     echo "[3/4] Starting stack..."
-    podman-compose -f "$COMPOSE_FILE" up -d
+    podman_compose -f "$COMPOSE_FILE" up -d
 
     echo "[4/4] Waiting for gateway health..."
     if wait_for_http "http://127.0.0.1:${OMNICORE_GATEWAY_HOST_PORT}/health" 120; then
@@ -175,9 +208,10 @@ case "$ACTION" in
     ;;
 
   down|stop)
-    require_cmd podman-compose
     load_env
-    podman-compose -f "$COMPOSE_FILE" down --remove-orphans
+    PODMAN_COMPOSE_BIN="$(podman_compose_bin)"
+    export PODMAN_COMPOSE_BIN
+    podman_compose -f "$COMPOSE_FILE" down --remove-orphans
     ;;
 
   restart)
