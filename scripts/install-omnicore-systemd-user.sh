@@ -24,6 +24,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+Environment=PODMAN_COMPOSE_BIN=%h/.local/bin/podman-compose
+Environment=PATH=%h/.local/bin:%h/.pyenv/shims:%h/.pyenv/bin:/usr/local/bin:/usr/bin:/bin
 WorkingDirectory=$PROJECT_ROOT
 ExecStart=/usr/bin/env bash $PROJECT_ROOT/scripts/publish-podman.sh up --no-build
 ExecStop=/usr/bin/env bash $PROJECT_ROOT/scripts/publish-podman.sh down
@@ -72,4 +74,3 @@ case "$ACTION" in
     exit 2
     ;;
 esac
-
