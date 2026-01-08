@@ -432,6 +432,14 @@ class MMOMetrics(BaseModel):
         "utility": 0.15,
         "inclusivity": 0.15
     })
+    
+    predictive_power: Dict[str, float] = Field(default_factory=lambda: {
+        "completeness": 0.5,
+        "coverage": 0.5,
+        "coherence": 0.5,
+        "utility": 0.5,
+        "inclusivity": 0.5
+    })
 
     last_updated: datetime = Field(default_factory=datetime.utcnow)
     evolution_triggers: List[str] = []  # Triggered improvements

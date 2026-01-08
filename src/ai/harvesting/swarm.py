@@ -4,6 +4,8 @@ v10 Enhanced: AI Quality Filter for autonomous ontology discovery
 """
 
 import asyncio
+import abc
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
@@ -28,20 +30,20 @@ class OntologyCandidate:
     metadata: Dict[str, Any] = None
 
 
-class OntologyHarvestingSwarm:
-    """
-    v10 Ontology Harvesting Swarm
+class SourceHarvester(abc.ABC):
+    """Abstract base class for ontology harvesting strategies."""
+    
+    @abc.abstractmethod
+    async def harvest(self, limit: int = 5) -> List[OntologyCandidate]:
+        """Harvest candidates from source."""
+        pass
 
-    Sources (from v10 spec):
-    - Academic: arXiv, PubMed, ACL Anthology
-    - Web: DBpedia, Wikidata, Schema.org
-    - Standards: BFO 2.0, DOLCE UltraLite, SUMO
-    - Domain: SNOMED CT, GO, HP, LKIF, LegalRuleML, OntoCAPE, SSN/SOSA
-    """
+
+class StaticHarvester(SourceHarvester):
+    """Harvests from predefined static sources."""
 
     SOURCES = {
         'academic': [
-            {'name': 'arXiv', 'base_url': 'https://arxiv.org'},
             {'name': 'PubMed', 'base_url': 'https://pubmed.ncbi.nlm.nih.gov'},
             {'name': 'ACL Anthology', 'base_url': 'https://aclanthology.org'},
         ],
@@ -70,9 +72,106 @@ class OntologyHarvestingSwarm:
         }
     }
 
+    async def harvest(self, limit: int = 5) -> List[OntologyCandidate]:
+        candidates = []
+        for cat, sources in self.SOURCES.items():
+            if isinstance(sources, dict):
+                # Domain sources have sub-categories
+                for subcat, subsources in sources.items():
+                    for source in subsources[:limit]:
+                        candidate = self._create_candidate(source, f"{cat}/{subcat}")
+                        if candidate:
+                            candidates.append(candidate)
+            else:
+                for source in sources[:limit]:
+                    candidate = self._create_candidate(source, cat)
+                    if candidate:
+                        candidates.append(candidate)
+        return candidates
+
+    def _create_candidate(self, source: Dict[str, Any], category: str) -> Optional[OntologyCandidate]:
+        if 'url' not in source:
+            return None
+        return OntologyCandidate(
+            name=source.get('name', 'Unknown'),
+            source=category,
+            url=source['url'],
+            domain=category.split('/')[-1] if '/' in category else category,
+            format=source.get('format', 'xml'),
+            estimated_size=source.get('size', 0),
+            discovered_at=datetime.utcnow(),
+            metadata=source
+        )
+
+
+class ArxivHarvester(SourceHarvester):
+    """Harvests ontology-related papers/data from arXiv API."""
+    
+    BASE_URL = "http://export.arxiv.org/api/query"
+    
+    async def harvest(self, limit: int = 5) -> List[OntologyCandidate]:
+        candidates = []
+        import httpx
+        
+        params = {
+            "search_query": "all:ontology AND all:web",
+            "start": 0,
+            "max_results": limit,
+            "sortBy": "submittedDate",
+            "sortOrder": "descending"
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(self.BASE_URL, params=params)
+                response.raise_for_status()
+                
+                # Parse Atom feed
+                root = ET.fromstring(response.content)
+                # Atom namespace
+                ns = {'atom': 'http://www.w3.org/2005/Atom'}
+                
+                for entry in root.findall('atom:entry', ns):
+                    title = entry.find('atom:title', ns).text.strip()
+                    id_url = entry.find('atom:id', ns).text.strip()
+                    summary = entry.find('atom:summary', ns).text.strip()
+                    published = entry.find('atom:published', ns).text.strip()
+                    
+                    # Create candidate
+                    candidates.append(OntologyCandidate(
+                        name=f"arXiv: {title[:50]}...",
+                        source="academic/arxiv",
+                        url=id_url,
+                        domain="academic",
+                        format="pdf",  # Usually PDF but listing as potential source
+                        estimated_size=0,
+                        discovered_at=datetime.utcnow(),
+                        metadata={
+                            "summary": summary[:200],
+                            "published": published,
+                            "full_title": title
+                        }
+                    ))
+                    
+        except Exception as e:
+            logger.warning(f"arXiv harvesting failed: {e}")
+            
+        return candidates
+
+
+class OntologyHarvestingSwarm:
+    """
+    v10 Ontology Harvesting Swarm
+    Orchestrates multiple harvesters.
+    """
+
     def __init__(self):
         self.settings = get_settings()
         self._slm_service = None
+        self.harvesters: List[SourceHarvester] = [
+            StaticHarvester(),
+            ArxivHarvester()
+        ]
 
     def _get_slm_service(self):
         """Lazy import SLM service"""
@@ -87,60 +186,21 @@ class OntologyHarvestingSwarm:
         limit: int = 5
     ) -> List[OntologyCandidate]:
         """
-        Discover ontology candidates from configured sources.
-
-        Args:
-            category: Optional category filter (academic, web, standards, domain)
-            limit: Max candidates per source
-
-        Returns:
-            List of discovered candidates
+        Discover ontology candidates from all strategies.
         """
-        candidates = []
-
-        sources_to_check = {}
+        tasks = [h.harvest(limit) for h in self.harvesters]
+        results = await asyncio.gather(*tasks)
+        
+        all_candidates = []
+        for res in results:
+            all_candidates.extend(res)
+            
+        # Filter if category provided (simple string match)
         if category:
-            if category in self.SOURCES:
-                sources_to_check[category] = self.SOURCES[category]
-        else:
-            sources_to_check = self.SOURCES
-
-        for cat, sources in sources_to_check.items():
-            if isinstance(sources, dict):
-                # Domain sources have sub-categories
-                for subcat, subsources in sources.items():
-                    for source in subsources[:limit]:
-                        candidate = self._create_candidate(source, f"{cat}/{subcat}")
-                        if candidate:
-                            candidates.append(candidate)
-            else:
-                for source in sources[:limit]:
-                    candidate = self._create_candidate(source, cat)
-                    if candidate:
-                        candidates.append(candidate)
-
-        logger.info(f"Discovered {len(candidates)} ontology candidates")
-        return candidates
-
-    def _create_candidate(
-        self,
-        source: Dict[str, Any],
-        category: str
-    ) -> Optional[OntologyCandidate]:
-        """Create candidate from source config"""
-        if 'url' not in source:
-            return None
-
-        return OntologyCandidate(
-            name=source.get('name', 'Unknown'),
-            source=category,
-            url=source['url'],
-            domain=category.split('/')[-1] if '/' in category else category,
-            format=source.get('format', 'xml'),
-            estimated_size=source.get('size', 0),
-            discovered_at=datetime.utcnow(),
-            metadata=source
-        )
+            all_candidates = [c for c in all_candidates if category in c.source]
+            
+        logger.info(f"Discovered {len(all_candidates)} candidates from {len(self.harvesters)} strategies")
+        return all_candidates
 
     async def harvest_batch(
         self,
@@ -149,13 +209,6 @@ class OntologyHarvestingSwarm:
     ) -> List[OntologyCandidate]:
         """
         v10 Enhanced: Harvest batch of ontologies with AI quality filter.
-
-        Args:
-            max_new: Maximum new ontologies to harvest
-            quality_threshold: Minimum quality score (0.7 per v10 spec)
-
-        Returns:
-            List of approved candidates
         """
         # Discover candidates
         all_candidates = await self.discover_candidates(limit=5)
@@ -212,8 +265,6 @@ class OntologyHarvestingSwarm:
     ) -> Dict[str, Any]:
         """
         Fetch and import an ontology candidate.
-
-        Returns import result.
         """
         from rdf.parser import OntologyImporter
         from common.models import OntologyImportRequest
@@ -239,5 +290,7 @@ class OntologyHarvestingSwarm:
         }
 
     def get_available_sources(self) -> Dict[str, Any]:
-        """Get list of available ontology sources"""
-        return self.SOURCES
+        """Get list of available ontology sources (from static harvester)"""
+        # Helper to return static list for compatibility
+        return StaticHarvester.SOURCES
+

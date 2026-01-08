@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS mmo_metrics (
     utility REAL DEFAULT 0.0,
     inclusivity REAL DEFAULT 0.0,
     mmo_score REAL DEFAULT 0.0,
+    weights TEXT,
+    predictive_power TEXT,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,8 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_mmo_slots_domain ON mmo_slots(domain_class_id);
 CREATE INDEX IF NOT EXISTS idx_mmo_classes_parent ON mmo_classes(parent_class_id);
 
 -- Initialize metrics row if not exists
-INSERT OR IGNORE INTO mmo_metrics (id, completeness, coverage, coherence, utility, inclusivity, mmo_score, last_updated)
-VALUES (1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, CURRENT_TIMESTAMP);
+INSERT OR IGNORE INTO mmo_metrics (id, completeness, coverage, coherence, utility, inclusivity, mmo_score, weights, predictive_power, last_updated)
+VALUES (1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, NULL, NULL, CURRENT_TIMESTAMP);
 """
 
 
@@ -363,15 +365,26 @@ class MMOStore:
             # Initialize metrics if not exists
             return MMOMetrics()
 
-        return MMOMetrics(
-            completeness=row["completeness"],
-            coverage=row["coverage"],
-            coherence=row["coherence"],
-            utility=row["utility"],
-            inclusivity=row["inclusivity"],
-            mmo_score=row["mmo_score"],
-            last_updated=datetime.fromisoformat(row["last_updated"]) if isinstance(row["last_updated"], str) else row["last_updated"],
-        )
+        # Prepare kwargs to allow Pydantic defaults for missing/null content
+        metrics_data = {
+            "completeness": row["completeness"],
+            "coverage": row["coverage"],
+            "coherence": row["coherence"],
+            "utility": row["utility"],
+            "inclusivity": row["inclusivity"],
+            "mmo_score": row["mmo_score"],
+            "last_updated": datetime.fromisoformat(row["last_updated"]) if isinstance(row["last_updated"], str) else row["last_updated"],
+        }
+        
+        weights = json_deserialize(row.get("weights"))
+        if weights is not None:
+            metrics_data["weights"] = weights
+            
+        predictive_power = json_deserialize(row.get("predictive_power"))
+        if predictive_power is not None:
+            metrics_data["predictive_power"] = predictive_power
+
+        return MMOMetrics(**metrics_data)
 
     def update_metrics(self, metrics: MMOMetrics) -> MMOMetrics:
         """
@@ -387,7 +400,7 @@ class MMOStore:
 
         query = """
             UPDATE mmo_metrics
-            SET completeness = ?, coverage = ?, coherence = ?, utility = ?, inclusivity = ?, mmo_score = ?, last_updated = ?
+            SET completeness = ?, coverage = ?, coherence = ?, utility = ?, inclusivity = ?, mmo_score = ?, weights = ?, predictive_power = ?, last_updated = ?
             WHERE id = 1
         """
         params = (
@@ -397,6 +410,8 @@ class MMOStore:
             metrics.utility,
             metrics.inclusivity,
             metrics.mmo_score,
+            json_serialize(metrics.weights),
+            json_serialize(metrics.predictive_power),
             now.isoformat(),
         )
 
@@ -405,22 +420,23 @@ class MMOStore:
 
         return self.get_metrics()
 
+
+
     def calculate_metrics(self) -> MMOMetrics:
         """
         Calculate MMO metrics based on current data.
 
-        This is a simplified calculation - in production this would be more sophisticated.
-
-        Returns:
-            Calculated MMOMetrics
+        v10 Spec: Self-Calibrating Metrics
+        Formula: MMO_Score = w₁·C + w₂·Cv + w₃·Ch + w₄·U + w₅·I
+        where wᵢ = softmax(predictive_powerᵢ)
         """
+        import math
+        
         # Get counts
         class_count = self.db.execute_one("SELECT COUNT(*) as count FROM mmo_classes")["count"]
         slot_count = self.db.execute_one("SELECT COUNT(*) as count FROM mmo_slots")["count"]
 
-        # Calculate basic metrics (simplified)
-        # In production, these would involve more sophisticated analysis
-
+        # Calculate basic metrics (simplified but v10 compliant structure)
         # Completeness: Based on having classes and slots defined
         completeness = min(1.0, (class_count / 10) * 0.5 + (slot_count / 20) * 0.5) if class_count > 0 else 0.0
 
@@ -430,20 +446,31 @@ class MMOStore:
         # Coherence: Check for orphan slots or circular references (simplified)
         coherence = 0.95 if class_count > 0 and slot_count > 0 else 0.5
 
-        # Utility: Based on structural completeness
+        # Utility: Based on structural completeness (Simulated query latency impact)
+        # U = 1 - (avg_query_latency_ms / 1000)
+        # Assuming nominal latency for now
         utility = (completeness + coverage) / 2
 
-        # Inclusivity: Placeholder (would analyze diversity of concepts)
+        # Inclusivity: Bias vectors (Placeholder)
         inclusivity = 0.7 if class_count > 0 else 0.0
 
+        # Get current predictive power (simulated self-calibration)
+        current_metrics = self.get_metrics()
+        predictive_power = current_metrics.predictive_power
+        
+        # Calculate Softmax Weights
+        # w_i = exp(p_i) / sum(exp(p_j))
+        exp_values = {k: math.exp(v) for k, v in predictive_power.items()}
+        total_exp = sum(exp_values.values())
+        weights = {k: v / total_exp for k, v in exp_values.items()}
+
         # Calculate weighted MMO score
-        # Weights from v10 spec: completeness (0.2), coverage (0.2), coherence (0.2), utility (0.2), inclusivity (0.2)
         mmo_score = (
-            completeness * 0.2 +
-            coverage * 0.2 +
-            coherence * 0.2 +
-            utility * 0.2 +
-            inclusivity * 0.2
+            completeness * weights["completeness"] +
+            coverage * weights["coverage"] +
+            coherence * weights["coherence"] +
+            utility * weights["utility"] +
+            inclusivity * weights["inclusivity"]
         )
 
         metrics = MMOMetrics(
@@ -453,6 +480,8 @@ class MMOStore:
             utility=round(utility, 4),
             inclusivity=round(inclusivity, 4),
             mmo_score=round(mmo_score, 4),
+            weights=weights,
+            predictive_power=predictive_power,
             last_updated=datetime.utcnow(),
         )
 

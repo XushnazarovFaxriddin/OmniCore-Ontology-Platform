@@ -131,12 +131,13 @@ OmniCore follows a hybrid approach:
 - **SLM Integration**: Ollama with Llama 3.2-1B or Gemma 2B
 - **Ontology Harvesting**: Autonomous discovery from academic and web sources
 - **Strategic Meta-AI**: Quarterly self-evaluation and planning
-- **Conflict Debate**: Multi-agent philosophical debate for resolution
+- **Conflict Debate**: Multi-agent philosophical debate for resolution (Visualized in Debate Lab)
+- **Strategic Dashboard**: Real-time monitoring of AI goals and oversight
 
 ### 5. Safety & Oversight
 
 - **Provenance Tracking**: Every entity retains import source and AI trace
-- **Human Oversight**: Critical changes require approval
+- **Human Oversight Interface**: Strategic Dashboard for approving AI plans
 - **Rollback Support**: Revert to any previous MO version
 - **Ethical Alerts**: Automatic flagging of bias or concerning patterns
 - **SIGUSR1 Halt**: Emergency stop signal for autonomous operations
@@ -580,6 +581,27 @@ omnicore rollback mo:v1.2.0 --dry-run
 
 # Execute rollback
 omnicore rollback mo:v1.2.0
+```
+
+### Strategic Meta-AI API
+
+**Trigger Review:**
+```bash
+curl -X POST http://localhost:18000/api/strategic/evaluate
+```
+
+**Check Status:**
+```bash
+curl http://localhost:18000/api/strategic/oversight
+```
+
+**Response:**
+```json
+{
+  "pending_approvals": 0,
+  "unresolved_alerts": 1,
+  "halt_active": false
+}
 ```
 
 ---

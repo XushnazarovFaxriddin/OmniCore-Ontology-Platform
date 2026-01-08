@@ -77,7 +77,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 )
 
         # In development mode, allow unauthenticated requests
-        if settings.omnicore_env == "development":
+        if settings.omnicore_env in ["development", "test"]:
             request.state.auth_type = "none"
             return await call_next(request)
 
