@@ -17,6 +17,8 @@ const aiNavItems = [
   { path: '/ai/assistant', label: 'AI Assistant', icon: '🤖' },
   { path: '/ai/search', label: 'AI Search', icon: '🔍' },
   { path: '/ai/models', label: 'AI Models', icon: '⚙️' },
+  { path: '/strategic', label: 'Strategic AI', icon: '🎯' },
+  { path: '/debate', label: 'Debate Lab', icon: '⚖️' },
 ];
 
 function Sidebar() {

@@ -302,13 +302,30 @@ export interface QualityAssessment {
   suggestions: string[];
 }
 
+export interface StrategicGoals {
+  ontology_coverage: boolean;
+  mmo_accuracy: boolean;
+  ai_task_success: boolean;
+  human_intervention: boolean;
+  ethical_flags: boolean;
+}
+
 export interface StrategicPlan {
-  period: string;
-  objectives: string[];
   actions: string[];
-  metrics_targets: Record<string, number>;
+  rationale: string;
+  rollback_plan: string;
   requires_human_approval: boolean;
-  priority_areas: string[];
+  affected_components: string[];
+}
+
+export interface QuarterlyReview {
+  review_id: string;
+  timestamp: string;
+  current_metrics: Record<string, number>;
+  goals_met: StrategicGoals;
+  gaps: string[];
+  plan: StrategicPlan;
+  status: 'pending' | 'approved' | 'rejected' | 'implemented' | 'completed';
 }
 
 export interface EntityEnhancement {

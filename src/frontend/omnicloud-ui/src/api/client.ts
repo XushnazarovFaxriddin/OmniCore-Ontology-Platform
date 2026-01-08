@@ -28,9 +28,11 @@ import type {
   EpistemicAnnotationResult,
   ConflictResolution,
   QualityAssessment,
+  StrategicGoals,
   StrategicPlan,
   EntityEnhancement,
   ConflictType,
+  QuarterlyReview,
 } from '../types';
 
 // Get API base URL from environment or default
@@ -506,13 +508,15 @@ export const aiApi = {
 
   // Causality Extraction
   extractCausality: async (entities: string[], descriptions: string[], context?: string) => {
-    const response = await slmApi.post<{ relationships: Array<{
-      source: string;
-      target: string;
-      causality_type: string;
-      confidence: number;
-      reasoning: string;
-    }> }>('/extract-causality', {
+    const response = await slmApi.post<{
+      relationships: Array<{
+        source: string;
+        target: string;
+        causality_type: string;
+        confidence: number;
+        reasoning: string;
+      }>
+    }>('/extract-causality', {
       entities,
       descriptions,
       context: context || '',
@@ -626,6 +630,57 @@ Provide JSON with:
       max_tokens: 1024,
       temperature: 0.4,
     });
+    return response.data;
+  },
+};
+
+// ==================== Strategic API ====================
+
+export const strategicApi = {
+  getReviews: async () => {
+    const response = await api.get<QuarterlyReview[]>('/strategic/reviews');
+    return response.data;
+  },
+
+  triggerReview: async () => {
+    const response = await api.post<QuarterlyReview>('/strategic/evaluate');
+    return response.data;
+  },
+
+  getOversight: async () => {
+    const response = await api.get<{
+      pending_approvals: number;
+      unresolved_alerts: number;
+      halt_active: boolean;
+    }>('/strategic/oversight');
+    return response.data;
+  },
+};
+
+// ==================== Debate API ====================
+
+export const debateApi = {
+  runDebate: async (topic: string) => {
+    // Calling the SLM endpoint for conflict resolution
+    const response = await api.post<ConflictResolution>('/slm/resolve-conflict', {
+      topic,
+      conflict_type: 'definition', // simplified for UI demo
+      agents: ['platonist', 'nominalist', 'pragmatist']
+    });
+    return response.data;
+  }
+};
+
+// ==================== Admin API ====================
+
+export const adminApi = {
+  resetDatabase: async () => {
+    const response = await api.post<{ status: string; message: string; details: any }>('/admin/database/reset');
+    return response.data;
+  },
+
+  seedDatabase: async () => {
+    const response = await api.post<{ status: string; message: string; details: any }>('/admin/database/seed');
     return response.data;
   },
 };

@@ -18,9 +18,14 @@ os.environ['OMNICORE_LOG_LEVEL'] = 'WARNING'
 @pytest.fixture
 def temp_db_path():
     """Create a temporary directory for test databases."""
+    from common.config import settings
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         os.environ['DATABASE_PATH'] = tmpdir
+        original_path = settings.database_path
+        settings.database_path = tmpdir
         yield tmpdir
+        settings.database_path = original_path
 
 
 @pytest.fixture

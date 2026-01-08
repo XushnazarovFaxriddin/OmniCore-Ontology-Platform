@@ -243,89 +243,14 @@ class SLMService:
         - Moderator synthesizes and checks consensus
         - Consensus threshold: 75% (3/4 agents agree)
         """
-        rounds: List[DebateRound] = []
-        all_arguments = ""
-        consensus_threshold = self.settings.conflict_consensus_threshold
-
-        roles = [AIAgentRole.PLATONIST, AIAgentRole.NOMINALIST, AIAgentRole.PRAGMATIST]
-
-        # Conduct debate rounds
-        for round_num in range(1, max_rounds + 1):
-            for role in roles:
-                prompt = PromptTemplates.get_debate_prompt(
-                    role=role.value,
-                    conflict_type=conflict.conflict_type.value,
-                    entity_a=conflict.entity_a,
-                    entity_b=conflict.entity_b,
-                    description=conflict.description,
-                    previous_arguments=all_arguments
-                )
-
-                request = SLMRequest(
-                    prompt=prompt,
-                    task_type="conflict",
-                    max_tokens=self.settings.conflict_max_tokens_per_turn,
-                    temperature=0.3
-                )
-
-                response = await self.client.generate(request)
-                parsed = self._parse_json_response(response.response)
-
-                round_entry = DebateRound(
-                    round_number=round_num,
-                    agent_role=role,
-                    argument=parsed.get("argument", response.response[:500]),
-                    confidence=parsed.get("confidence", response.confidence),
-                    supporting_evidence=parsed.get("supporting_evidence", [])
-                )
-                rounds.append(round_entry)
-
-                all_arguments += f"\n[{role.value.upper()} Round {round_num}]: {round_entry.argument}\n"
-
-        # Moderator synthesizes
-        moderator_prompt = PromptTemplates.get_debate_prompt(
-            role="moderator",
-            conflict_type=conflict.conflict_type.value,
-            entity_a=conflict.entity_a,
-            entity_b=conflict.entity_b,
-            description=conflict.description,
-            all_arguments=all_arguments,
-            threshold=consensus_threshold
-        )
-
-        request = SLMRequest(
-            prompt=moderator_prompt,
-            task_type="conflict",
-            max_tokens=1024,
-            temperature=0.2
-        )
-
-        response = await self.client.generate(request)
-        synthesis = self._parse_json_response(response.response)
-
-        # Determine consensus
-        consensus_reached = synthesis.get("consensus_reached", False)
-        consensus_pct = synthesis.get("consensus_percentage", 0.0)
-
-        if consensus_pct >= consensus_threshold:
-            consensus_reached = True
-
-        # Build result
-        supporting_roles = []
-        for role_str in synthesis.get("supporting_agents", []):
-            try:
-                supporting_roles.append(AIAgentRole(role_str.lower()))
-            except ValueError:
-                pass
-
-        return DebateResult(
-            conflict_id=conflict.id,
-            rounds=rounds,
-            consensus_reached=consensus_reached,
-            consensus_threshold=consensus_threshold,
-            final_resolution=synthesis.get("final_resolution", "No resolution reached"),
-            supporting_agents=supporting_roles,
-            contextual_axiom=synthesis.get("contextual_axiom")
+        # Lazy import to avoid circular dependencies if any
+        from .debate import ConflictDebate
+        
+        debate = ConflictDebate()
+        return await debate.run_debate(
+            conflict=conflict,
+            max_rounds=max_rounds,
+            consensus_threshold=self.settings.conflict_consensus_threshold
         )
 
     # ==========================================================================

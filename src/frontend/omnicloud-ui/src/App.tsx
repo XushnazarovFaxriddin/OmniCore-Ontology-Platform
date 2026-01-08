@@ -13,6 +13,8 @@ import AISearch from './pages/AISearch';
 import AIModels from './pages/AIModels';
 import UserGuide from './pages/UserGuide';
 import Architecture from './pages/Architecture';
+import StrategicDashboard from './pages/StrategicDashboard';
+import DebateVisualizer from './pages/DebateVisualizer';
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
           <Route path="/ai/assistant" element={<AIAssistant />} />
           <Route path="/ai/search" element={<AISearch />} />
           <Route path="/ai/models" element={<AIModels />} />
+          <Route path="/strategic" element={<StrategicDashboard />} />
+          <Route path="/debate" element={<DebateVisualizer />} />
           <Route path="/guide" element={<UserGuide />} />
           <Route path="/architecture" element={<Architecture />} />
         </Routes>

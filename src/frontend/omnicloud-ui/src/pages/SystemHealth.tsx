@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { healthApi } from '../api/client';
+import { healthApi, adminApi } from '../api/client';
 import Loading from '../components/common/Loading';
 import ErrorMessage from '../components/common/ErrorMessage';
 import type { ServiceHealth, HealthStatus } from '../types';
@@ -27,8 +28,8 @@ function SystemHealth() {
       status === 'healthy' || status === 'up'
         ? 'badge-success'
         : status === 'degraded'
-        ? 'badge-warning'
-        : 'badge-danger';
+          ? 'badge-warning'
+          : 'badge-danger';
     return <span className={`badge ${colorClass}`}>{status.toUpperCase()}</span>;
   };
 
@@ -60,8 +61,8 @@ function SystemHealth() {
                   overallStatus === 'healthy'
                     ? 'rgba(34, 197, 94, 0.1)'
                     : overallStatus === 'degraded'
-                    ? 'rgba(245, 158, 11, 0.1)'
-                    : 'rgba(239, 68, 68, 0.1)',
+                      ? 'rgba(245, 158, 11, 0.1)'
+                      : 'rgba(239, 68, 68, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -171,7 +172,64 @@ function SystemHealth() {
           </div>
         </div>
       </div>
+
+      {/* System Management */}
+      <div className="card" style={{ marginTop: '24px', borderColor: 'var(--danger-color)' }}>
+        <h3 className="card-title" style={{ marginBottom: '16px', color: 'var(--danger-color)' }}>
+          System Management (Danger Zone)
+        </h3>
+        <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+          These actions affect the entire platform state. Proceed with caution.
+        </p>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <AdminActionButton
+            label="Reset Database"
+            action={async () => {
+              if (confirm('WARNING: THIS WILL DELETE ALL DATA. Are you sure?')) {
+                await adminApi.resetDatabase();
+                alert('Database reset successfully. Please restart services if needed.');
+                window.location.reload();
+              }
+            }}
+            danger={true}
+          />
+          <AdminActionButton
+            label="Seed Sample Data"
+            action={async () => {
+              if (confirm('This will insert sample data into the database. Continue?')) {
+                const res = await adminApi.seedDatabase();
+                alert(`Seeding complete: ${JSON.stringify(res.details)}`);
+                window.location.reload();
+              }
+            }}
+            danger={false}
+          />
+        </div>
+      </div>
     </div>
+  );
+}
+
+function AdminActionButton({ label, action, danger }: { label: string; action: () => Promise<void>; danger: boolean }) {
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <button
+      className={`btn ${danger ? 'btn-danger' : 'btn-secondary'}`}
+      disabled={loading}
+      onClick={async () => {
+        setLoading(true);
+        try {
+          await action();
+        } catch (e) {
+          alert('Action failed: ' + String(e));
+        } finally {
+          setLoading(false);
+        }
+      }}
+    >
+      {loading ? 'Processing...' : label}
+    </button>
   );
 }
 

@@ -17,6 +17,8 @@ from common.models import HealthResponse, HealthStatus, SystemHealthResponse
 
 from .proxy import ServiceProxy
 from .router import router
+from .admin import router as admin_router
+from ai.strategic.api import router as strategic_router
 from .middleware import (
     AuthMiddleware,
     RateLimitMiddleware,
@@ -137,6 +139,8 @@ async def health_overview():
 
 # Include API router with prefix
 app.include_router(router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
+app.include_router(strategic_router, prefix="/api")
 
 
 # ==================== Error Handlers ====================
